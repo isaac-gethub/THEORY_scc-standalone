@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="scc-auth-guard.js"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B9 — AI in Controls | SAP Controls &amp; Compliance | TIB Systems Inc.</title>
+  <link rel="stylesheet" href="design-system.css" />
+  <style>
+    .hamburger{display:none;flex-direction:column;gap:5px;background:transparent;border:none;cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);flex-shrink:0;}
+    .hamburger span{display:block;width:22px;height:2px;background:rgba(255,255,255,0.80);border-radius:2px;}
+    @media(max-width:900px){.hamburger{display:flex;}.lms-header__divider{display:none;}}
+    .sidebar-backdrop{display:none;position:fixed;inset:0;top:var(--header-height);background:var(--bg-overlay);z-index:calc(var(--z-overlay)-1);}
+    .sidebar-backdrop.active{display:block;}
+    .module-body h2{font-family:var(--font-display);font-size:var(--scale-2xl);color:var(--text-primary);letter-spacing:var(--tracking-tight);line-height:var(--leading-tight);margin-bottom:var(--space-4);margin-top:var(--space-10);}
+    .module-body h2:first-child{margin-top:0;}
+    .module-body h3{font-size:var(--scale-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);margin-top:var(--space-6);}
+    .module-body p{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);max-width:68ch;}
+    .module-body strong{color:var(--text-primary);font-weight:600;}
+
+    /* ── PHASE AGENT CARDS ── */
+    .agent-phase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin:var(--space-5) 0 var(--space-8);}
+    .agent-phase-card{background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-2xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .agent-phase-card__header{padding:var(--space-3) var(--space-4);display:flex;align-items:center;gap:var(--space-2);}
+    .agent-phase-card__phase{font-size:var(--scale-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--white);}
+    .agent-phase-card__body{padding:var(--space-4);}
+    .agent-phase-card__task{font-size:var(--scale-sm);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-2);}
+    .agent-phase-card__agent{font-size:var(--scale-xs);color:var(--text-muted);margin-bottom:var(--space-3);line-height:1.5;padding:var(--space-2) var(--space-3);background:var(--grey-50);border-radius:var(--radius-lg);}
+    .agent-phase-card__prac{font-size:var(--scale-xs);color:var(--text-secondary);line-height:1.5;border-top:1px solid var(--grey-100);padding-top:var(--space-3);}
+    .agent-phase-card__prac-label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--teal);margin-bottom:3px;}
+
+    /* ── ATTENTION SHIFT VISUAL ── */
+    .attention-shift{background:var(--navy);border-radius:var(--radius-2xl);padding:var(--space-6);margin:var(--space-5) 0 var(--space-8);}
+    .attention-shift__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:var(--space-5);}
+    .attention-row{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-3) 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+    .attention-row:last-child{border-bottom:none;}
+    .attention-row__label{flex:1;font-size:var(--scale-sm);font-weight:700;color:var(--white);}
+    .attention-row__desc{flex:2;font-size:var(--scale-xs);color:rgba(255,255,255,0.45);line-height:1.4;}
+    .attention-row__badge{min-width:64px;text-align:center;font-size:var(--scale-xs);font-weight:700;padding:4px 10px;border-radius:var(--radius-pill);}
+    .badge-less{background:rgba(198,42,31,0.20);color:rgba(230,80,70,0.90);}
+    .badge-more{background:rgba(26,122,74,0.20);color:rgba(80,190,120,0.90);}
+    .badge-same{background:rgba(198,89,17,0.20);color:rgba(230,130,70,0.90);}
+
+    /* ── LIMITS CARDS ── */
+    .limits-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin:var(--space-5) 0 var(--space-6);}
+    .limit-card{background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-2xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .limit-card__header{padding:var(--space-3) var(--space-4);font-size:var(--scale-sm);font-weight:700;color:var(--white);}
+    .limit-card__body{padding:var(--space-4);}
+    .limit-card__body p{font-size:var(--scale-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);margin:0;}
+
+    /* ── CAPSTONE CALLOUT ── */
+    .capstone-callout{background:linear-gradient(135deg,var(--navy-deep) 0%,var(--navy) 100%);border:1px solid rgba(31,122,140,0.30);border-left:4px solid var(--teal);border-radius:var(--radius-2xl);padding:var(--space-6);margin:var(--space-6) 0;}
+    .capstone-callout__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--teal-light);margin-bottom:var(--space-3);}
+    .capstone-callout__quote{font-family:var(--font-display);font-size:var(--scale-xl);color:var(--white);line-height:var(--leading-snug);font-style:italic;}
+
+    .ring-svg{transform:rotate(-90deg);}
+    .ring-bg{fill:none;stroke:var(--grey-100);stroke-width:3;}
+    .ring-fill{fill:none;stroke:var(--teal);stroke-width:3;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 600ms ease;}
+    .confetti-piece{position:absolute;border-radius:2px;animation:confettiFall linear forwards;}
+
+    @media(max-width:900px){
+      .lms-sidebar{position:fixed;left:0;top:var(--header-height);bottom:0;z-index:var(--z-overlay);transform:translateX(-100%);transition:transform var(--transition-slow);}
+      .lms-sidebar.open{transform:translateX(0);box-shadow:var(--shadow-xl);}
+      .lms-content{padding:var(--space-6) var(--space-5) var(--space-16);}
+      .module-hero{padding:var(--space-8) var(--space-5);}
+      .agent-phase-grid{grid-template-columns:1fr;}
+      .limits-grid{grid-template-columns:1fr;}
+    }
+    @media(max-width:600px){.module-nav-footer__context{display:none;}}
+  </style>
+</head>
+<body>
+<div class="lms-app" id="app">
+  <header class="lms-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    <a href="../index.html" class="lms-header__logo"><div class="lms-header__logo-mark">T</div><div class="lms-header__brand"><span class="lms-header__brand-name">TIB Systems</span><span class="lms-header__brand-sub">Powered by TIB Systems Inc.</span></div></a>
+    <div class="lms-header__divider"></div>
+    <div class="lms-header__prog"><div class="lms-header__prog-name">SAP Controls &amp; Compliance Training Programme</div><div class="lms-header__prog-sub">10-Module Practitioner Path</div></div>
+    <div class="lms-header__actions">
+      <a href="../index.html" class="btn btn-ghost btn--sm" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.70);font-size:var(--scale-xs);">← All Modules</a>
+      <div class="badge badge--teal" id="header-status-badge">In Progress</div>
+    </div>
+  </header>
+  <div class="lms-body">
+    <aside class="lms-sidebar" id="sidebar">
+      <div class="lms-sidebar__section-label">Foundation</div>
+      <button class="lms-nav-item" data-module="B1" onclick="location.href='b1.html'"><div class="lms-nav-item__icon">B1</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Risk Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B2" onclick="location.href='b2.html'"><div class="lms-nav-item__icon">B2</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B3" onclick="location.href='b3.html'"><div class="lms-nav-item__icon">B3</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Nature</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B4" onclick="location.href='b4.html'"><div class="lms-nav-item__icon">B4</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Why Controls Matter</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Applied</div>
+      <button class="lms-nav-item" data-module="B5" onclick="location.href='b5.html'"><div class="lms-nav-item__icon">B5</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Engagement Types</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item" data-module="B6" onclick="location.href='b6.html'"><div class="lms-nav-item__icon">B6</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">S/4HANA Lifecycle</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item" data-module="B7" onclick="location.href='b7.html'"><div class="lms-nav-item__icon">B7</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Reading FD Documents</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Advanced</div>
+      <button class="lms-nav-item" data-module="B8" onclick="location.href='b8.html'"><div class="lms-nav-item__icon">B8</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Testing Phase</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <button class="lms-nav-item active" data-module="B9"><div class="lms-nav-item__icon">B9</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">AI in Controls</div><div class="lms-nav-item__subtitle">Current module</div></div><div class="lms-nav-item__badge"></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Capstone</div>
+      <button class="lms-nav-item" data-module="B10" onclick="location.href='b10.html'"><div class="lms-nav-item__icon">B10</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Practitioner Capstone</div><div class="lms-nav-item__subtitle">Capstone</div></div></button>
+      <div style="margin-top:auto;padding:var(--space-5);border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:var(--scale-2xs);color:rgba(255,255,255,0.30);letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-2);">Programme Progress</div>
+        <div class="progress-bar" style="height:5px;background:rgba(255,255,255,0.10);"><div class="progress-bar__fill" id="sidebar-prog-fill" style="width:0%;"></div></div>
+        <div style="font-family:var(--font-mono);font-size:var(--scale-2xs);color:rgba(255,255,255,0.35);margin-top:var(--space-2);" id="sidebar-prog-text">0 / 10 complete</div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+    <main class="lms-main" id="main-scroll">
+      <div class="module-progress-strip">
+        <span class="module-progress-strip__label">Module Progress</span>
+        <div class="module-progress-strip__bar"><div class="progress-bar"><div class="progress-bar__fill" id="mod-prog-bar" style="width:10%;"></div></div></div>
+        <span class="module-progress-strip__pct" id="mod-prog-pct">10%</span>
+      </div>
+      <div class="module-hero">
+        <div class="module-hero__inner">
+          <div class="module-hero__eyebrow"><span class="module-hero__code">B9</span><span class="module-hero__prog-label">SAP Controls &amp; Compliance Training Programme</span></div>
+          <h1 class="module-hero__title"><em>AI in Controls</em> — Augment, Not Replace</h1>
+          <p class="module-hero__desc">AI agents are already showing up in the controls workstream. This module gives you a grounded picture of where they add real value, where practitioner judgement remains irreplaceable, and how the "augment not replace" frame applies to how you work.</p>
+          <div class="module-hero__meta">
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="module-hero__meta-text">9–11 min · 3 sections · Advanced</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span class="module-hero__meta-text">5 MCQs · Self-referential AI Tutor</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="module-hero__meta-text" id="hero-status">In progress</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="lms-content">
+        <div class="learning-objectives animate-fade-in">
+          <div class="learning-objectives__header"><div class="icon-circle icon-circle--md icon-circle--navy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><span class="learning-objectives__title">Learning Objectives</span></div>
+          <div class="learning-objectives__list">
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>describe where AI agents add measurable value</strong> in the controls workstream — gap analysis in SolCon, control proposal in Design &amp; Build, test coverage analysis in Testing.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>explain the clear limits of AI capability</strong> and identify the three practitioner judgements that remain irreplaceable.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>apply the augment-not-replace frame</strong> — understanding how attention shifts without the practitioner's role disappearing.</span></div>
+          </div>
+        </div>
+        <div class="tabs animate-fade-in">
+          <div class="tabs__nav" role="tablist">
+            <button class="tab-btn active" role="tab" data-tab="content" onclick="switchTab(this,'content')">📖 Content</button>
+            <button class="tab-btn" role="tab" data-tab="concepts" onclick="switchTab(this,'concepts')">🗂 Key Concepts</button>
+            <button class="tab-btn" role="tab" data-tab="quiz" onclick="switchTab(this,'quiz')">✏️ Knowledge Check</button>
+            <button class="tab-btn" role="tab" data-tab="tutor" onclick="switchTab(this,'tutor')">🤖 AI Tutor</button>
+          </div>
+
+          <!-- ══ CONTENT ══ -->
+          <div class="tab-panel active" id="tab-content">
+            <div class="module-body">
+              <h2>Section 1 · What AI Agents Do in the Controls Workstream</h2>
+              <p>An agent, in the controls context, is a software system that can be given a task, access relevant information, and produce a structured output — without requiring a human to do each step manually. The tasks agents handle best involve processing large volumes of structured or semi-structured information to produce a preliminary output that a practitioner then reviews and refines.</p>
+
+              <div class="agent-phase-grid">
+                <div class="agent-phase-card">
+                  <div class="agent-phase-card__header" style="background:var(--teal);"><span class="agent-phase-card__phase">SolCon</span></div>
+                  <div class="agent-phase-card__body">
+                    <div class="agent-phase-card__task">Gap Analysis</div>
+                    <div class="agent-phase-card__agent">🤖 Agent: Ingests current-state process docs + future-state programme artefacts. Surfaces which controls exist today with no future-state equivalent — and which risks are new.</div>
+                    <div class="agent-phase-card__prac-label">Practitioner role shifts to</div>
+                    <div class="agent-phase-card__prac">Reviewing the first-cut gap analysis. Validating what the agent found. Challenging what it missed. Applying programme context and professional scepticism.</div>
+                  </div>
+                </div>
+                <div class="agent-phase-card">
+                  <div class="agent-phase-card__header" style="background:var(--navy);"><span class="agent-phase-card__phase">Design &amp; Build</span></div>
+                  <div class="agent-phase-card__body">
+                    <div class="agent-phase-card__task">Control Proposal</div>
+                    <div class="agent-phase-card__agent">🤖 Agent: Ingests functional design documents. Proposes a control description, suggested type/nature classification, and a draft RACM entry for each FD.</div>
+                    <div class="agent-phase-card__prac-label">Practitioner role shifts to</div>
+                    <div class="agent-phase-card__prac">Reviewing each proposal. Accepting well-formed drafts. Reworking those that missed a nuance — wrong classification, overlooked error handling, manual where automated is possible.</div>
+                  </div>
+                </div>
+                <div class="agent-phase-card">
+                  <div class="agent-phase-card__header" style="background:var(--amber);"><span class="agent-phase-card__phase">Testing</span></div>
+                  <div class="agent-phase-card__body">
+                    <div class="agent-phase-card__task">Test Coverage Analysis</div>
+                    <div class="agent-phase-card__agent">🤖 Agent: Cross-references the RACM against the test case library. Flags controls with no test coverage and test cases with evidence requirements inconsistent with the control type.</div>
+                    <div class="agent-phase-card__prac-label">Practitioner role shifts to</div>
+                    <div class="agent-phase-card__prac">Reviewing flagged gaps. Confirming whether missing coverage is intentional or an oversight. Directing the testing captain to address gaps before the testing cycle closes.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="callout callout--info"><div class="callout__icon">💡</div><div class="callout__body"><div class="callout__title">The Value Is Not That the Agent Replaces Review</div><div class="callout__text">The value is that the practitioner <strong>starts from a structured draft rather than a blank page</strong>. On a programme with hundreds of FDs, that shift — from blank-page creation to structured review — is where the efficiency gain actually materialises. The judgement work remains. The information-processing work is accelerated.</div></div></div>
+
+              <h2>Section 2 · The Limits of AI Capability</h2>
+              <p>There are three practitioner judgements that AI agents cannot make — not as a matter of current capability, but as a matter of what the judgement requires.</p>
+
+              <div class="limits-grid">
+                <div class="limit-card">
+                  <div class="limit-card__header" style="background:#C62A1F;">⚖️ Professional Judgement</div>
+                  <div class="limit-card__body"><p>Whether a test result constitutes <em>sufficient evidence</em> for a specific client and engagement context. An agent can flag that evidence exists — it cannot assess whether it is appropriate for this client, this auditor, this risk level.</p></div>
+                </div>
+                <div class="limit-card">
+                  <div class="limit-card__header" style="background:var(--amber);">🔗 Client Context</div>
+                  <div class="limit-card__body"><p>Why one company code has a tolerance exception — and whether the explanation is credible. An agent can identify the exception. It cannot assess the business rationale, the relationship history, or whether the client's answer makes sense.</p></div>
+                </div>
+                <div class="limit-card">
+                  <div class="limit-card__header" style="background:var(--navy);">🧐 Professional Scepticism</div>
+                  <div class="limit-card__body"><p>Recognising when a monitoring report was signed off without any investigation of the exceptions it flagged. An agent can see the sign-off. It cannot sense the absence of substantive review behind a clean-looking form.</p></div>
+                </div>
+              </div>
+              <p style="font-size:var(--scale-sm);color:var(--text-secondary);font-style:italic;border-left:3px solid var(--grey-200);padding-left:var(--space-4);">These assessments require a practitioner who knows the client, knows the programme, and has the professional accountability that comes with signing off on the work.</p>
+
+              <h2>Section 3 · Augment, Not Replace — The Frame That Matters</h2>
+              <p>The framing that matters is simple: AI agents <strong>propose</strong>. Practitioners <strong>decide</strong>. What changes is where in the process your attention is most needed.</p>
+
+              <div class="attention-shift">
+                <div class="attention-shift__label">Where Your Attention Shifts</div>
+                <div class="attention-row"><div class="attention-row__label">Information Processing</div><div class="attention-row__desc">Initial triage, first-draft analysis, volume cross-referencing — agent accelerates this</div><div class="attention-row__badge badge-less">Less</div></div>
+                <div class="attention-row"><div class="attention-row__label">Judgement</div><div class="attention-row__desc">Validating, challenging, contextualising agent outputs — this grows in importance</div><div class="attention-row__badge badge-more">More</div></div>
+                <div class="attention-row"><div class="attention-row__label">Relationship Work</div><div class="attention-row__desc">Client credibility, stakeholder conversations, trust — AI cannot substitute here</div><div class="attention-row__badge badge-more">More</div></div>
+                <div class="attention-row"><div class="attention-row__label">Accountability</div><div class="attention-row__desc">Professional sign-off cannot be delegated to an agent — this stays with you</div><div class="attention-row__badge badge-same">Same</div></div>
+              </div>
+
+              <div class="capstone-callout">
+                <div class="capstone-callout__label">The Capstone Line of the Advanced Section</div>
+                <div class="capstone-callout__quote">"The practitioner's core skill set is not going away. It is becoming more valuable. That is a good place to be."</div>
+              </div>
+
+              <div class="callout callout--success"><div class="callout__icon">✅</div><div class="callout__body"><div class="callout__title">Module B9 Complete</div><div class="callout__text">You have covered all three sections. Proceed to <strong>Key Concepts</strong> for a recall review, or go directly to the <strong>Knowledge Check</strong>. A score of 60% marks this module complete and unlocks Module B10 — the Practitioner Capstone.</div></div></div>
+            </div>
+          </div>
+
+          <!-- ══ KEY CONCEPTS ══ -->
+          <div class="tab-panel" id="tab-concepts">
+            <div style="font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-4);">AI Agent Value by Phase</div>
+            <div class="grid-3" style="margin-bottom:var(--space-6);">
+              <div class="concept-card"><div class="concept-card__accent"></div><div class="concept-card__body"><div class="concept-card__label">SolCon</div><div class="concept-card__title">Gap Analysis</div><div class="concept-card__body-text">Agent ingests current-state + future-state artefacts, surfaces gaps. Practitioner reviews and applies programme context. Shift: doing the analysis → reviewing the analysis.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--navy"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--navy">Design &amp; Build</div><div class="concept-card__title">Control Proposal</div><div class="concept-card__body-text">Agent ingests FDs, proposes draft RACM entries (description + type/nature). Practitioner reviews. Starts from a structured draft not a blank page.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--amber"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--amber">Testing</div><div class="concept-card__title">Coverage Analysis</div><div class="concept-card__body-text">Agent cross-references RACM against test cases. Flags uncovered controls and mismatched evidence requirements. Practitioner confirms and directs remediation.</div></div></div>
+            </div>
+
+            <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Key Definitions</div><div class="section-divider__line"></div></div>
+
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Concept</span><span class="key-term__word">Augment Not Replace</span></div><div class="key-term__definition">The framing for AI in the controls workstream. Agents propose; practitioners decide. The practitioner's role does not disappear — it shifts. Less time on information processing. More time on judgement, challenge, and relationship work. Professional accountability stays with the practitioner throughout.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Concept</span><span class="key-term__word">Agent Capability Boundary</span></div><div class="key-term__definition">The limit of what AI agents can do in the controls context. Agents can process volume, surface patterns, and produce structured first drafts. They cannot: assess whether evidence is sufficient for a specific engagement context; evaluate the credibility of a client's explanation; or apply the professional scepticism required to identify a sign-off that is formal but not substantive.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Concept</span><span class="key-term__word">Attention Shift</span></div><div class="key-term__definition">The reallocation of practitioner effort when AI agents handle information processing. Information processing: Less (agent handles triage and first drafts). Judgement: More (validating and challenging agent outputs). Relationship work: More (client credibility cannot be automated). Accountability: Same (professional sign-off stays with the practitioner).</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Critical Engagement (vs Passive Acceptance)</span></div><div class="key-term__definition">Two stances toward AI tools. Passive acceptance: receives agent outputs, accepts without challenge, misses errors agents cannot self-detect. Critical engagement: develops a working understanding of AI capability, reviews outputs with scepticism, applies professional judgement where required. Practitioners who engage critically will be better positioned than those who ignore AI entirely or defer to it uncritically.</div></div>
+          </div>
+
+          <!-- ══ QUIZ ══ -->
+          <div class="tab-panel" id="tab-quiz">
+            <div class="quiz-block">
+              <div class="quiz-block__header"><div class="quiz-block__icon">✏️</div><div class="quiz-block__title">Knowledge Check — B9 AI in Controls</div><div class="quiz-block__counter" id="quiz-counter">Q1 of 5</div></div>
+              <div class="quiz-block__body" id="quiz-body">
+                <div id="quiz-question-wrap"><div class="quiz-question" id="quiz-q-text">Loading…</div><div class="quiz-options" id="quiz-options"></div><div class="quiz-feedback" id="quiz-feedback"><div class="quiz-feedback__icon" id="quiz-fb-icon"></div><div class="quiz-feedback__text" id="quiz-fb-text"></div></div></div>
+                <div class="quiz-score-display hidden" id="quiz-score-screen">
+                  <div class="quiz-score-display__number" id="quiz-score-num">—</div>
+                  <div class="quiz-score-display__label">Your Score</div>
+                  <div style="margin-top:var(--space-4);font-size:var(--scale-sm);color:var(--text-secondary);max-width:40ch;margin-left:auto;margin-right:auto;" id="quiz-score-msg"></div>
+                  <div style="margin-top:var(--space-8);display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="restartQuiz()">Retake Quiz</button>
+                    <button class="btn btn-primary" onclick="switchTab(document.querySelector('[data-tab=tutor]'),'tutor')">Ask AI Tutor</button>
+                    <button class="btn btn-navy" id="next-mod-btn" onclick="location.href='b10.html'" style="display:none;">Next: B10 →</button>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-block__footer" id="quiz-footer">
+                <div style="font-size:var(--scale-xs);color:var(--text-muted);"><span id="quiz-score-track">Score: 0 / 0</span></div>
+                <div style="display:flex;gap:var(--space-3);">
+                  <button class="btn btn-ghost btn--sm" id="quiz-check-btn" onclick="checkAnswer()" disabled>Check Answer</button>
+                  <button class="btn btn-primary btn--sm hidden" id="quiz-next-btn" onclick="nextQuestion()">Next →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ AI TUTOR ══ -->
+          <div class="tab-panel" id="tab-tutor">
+            <div class="ai-tutor">
+              <div class="ai-tutor__header">
+                <div class="ai-tutor__avatar">🤖</div>
+                <div class="ai-tutor__info"><div class="ai-tutor__name">TIB AI Tutor</div><div class="ai-tutor__status"><div class="ai-tutor__status-dot"></div>Ready — Module B9 context loaded</div></div>
+                <div class="ai-tutor__badge">Powered by Claude</div>
+              </div>
+              <div class="ai-tutor__messages" id="chat-messages">
+                <div class="chat-message chat-message--ai"><div class="chat-message__avatar">T</div><div class="chat-message__bubble">👋 Welcome to Module B9 — <strong>AI in Controls</strong>.<br><br>I should mention something worth noting: I am an example of the AI capability this module describes. Right now I am assisting you — a practitioner — by processing your questions and producing structured responses. You are deciding what to do with those responses. That is the augment-not-replace frame in action. Ask me anything about where AI agents add value, where they cannot substitute for practitioner judgement, or how to think about your own positioning as AI capability grows in the controls workstream.</div></div>
+              </div>
+              <div class="ai-tutor__prompt-row">
+                <button class="prompt-chip" onclick="sendChip(this)">What can AI agents do in SolCon?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What can AI not do that I still need to do?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Explain the attention shift</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Passive acceptance vs critical engagement</button>
+                <button class="prompt-chip" onclick="sendChip(this)">How does this apply to control proposal in DB?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Why is accountability the same?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Give me a quiz hint</button>
+              </div>
+              <div class="ai-tutor__input-row">
+                <textarea class="ai-tutor__textarea" id="chat-input" placeholder="Ask anything about Module B9 — AI in Controls…" rows="1" onkeydown="handleChatKey(event)" oninput="autoGrow(this)"></textarea>
+                <button class="ai-tutor__send" id="chat-send" onclick="sendChat()" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div><!-- /tabs -->
+
+        <div class="completion-banner hidden" id="completion-banner">
+          <div class="completion-banner__confetti" id="confetti-wrap"></div>
+          <div class="completion-banner__inner">
+            <span class="completion-banner__icon">🎉</span>
+            <h2 class="completion-banner__title">Module B9 Complete!</h2>
+            <p class="completion-banner__subtitle">You understand where AI agents add value — and where the practitioner's judgement remains irreplaceable. One module to go. The Practitioner Capstone awaits.</p>
+            <div class="completion-banner__stats">
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-score">—</div><div class="completion-banner__stat-label">Quiz Score</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value">B9</div><div class="completion-banner__stat-label">Module</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-time">—</div><div class="completion-banner__stat-label">Time Spent</div></div>
+            </div>
+            <a href="b10.html" class="btn btn-primary btn--xl">Continue to B10 — Practitioner Capstone →</a>
+          </div>
+        </div>
+      </div><!-- /lms-content -->
+
+      <footer class="module-nav-footer">
+        <div class="module-nav-footer__context">
+          <svg class="module-nav-footer__progress-ring ring-svg" viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="15.9"/><circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15.9"/></svg>
+          <div class="module-nav-footer__labels"><div class="module-nav-footer__module">Module B9 · Advanced</div><div class="module-nav-footer__title">AI in Controls</div></div>
+        </div>
+        <div class="module-nav-footer__actions">
+          <a href="b8.html" class="btn btn-ghost btn--sm">← B8</a>
+          <button class="btn btn-ghost btn--sm" id="mark-complete-btn" onclick="markComplete()">Mark Complete</button>
+          <a href="b10.html" class="btn btn-navy btn--sm">Next: B10 →</a>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+<script>
+const CLAUDE_API_KEY='sk-ant-api03-6S-zY5EX14Ity0O8rV9tk12lMdtk1QVBuc0RbxmLWssAqcE5avVmWPL3F_K-IMe8whHE9YdA-zxF7NFUuA2b-w-cM';
+const LS_COMPLETE_KEY='tib_module_b9_complete';
+const LS_ALL_CODES=['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'];
+const MODULE_START_MS=Date.now();
+
+const QUIZ=[
+  {
+    q:'A controls team is working on a large S/4HANA transformation programme with approximately 400 functional design documents to review in the Design and Build phase. They have access to an AI agent that can ingest FDs and propose preliminary RACM entries. What is the correct way to describe the agent\'s role in this workflow?',
+    opts:[
+      {t:'The agent completes the RACM entries, freeing the controls team to focus on stakeholder management and report writing.',c:false},
+      {t:'The agent proposes draft RACM entries — including control description, type, and nature — which the controls team then reviews, challenges, and refines before the RACM is finalised.',c:true},
+      {t:'The agent should only be used for low-risk controls, with high-risk controls reserved for manual RACM drafting by the practitioner.',c:false},
+      {t:'The agent replaces the need for FD review since it extracts all relevant control parameters automatically.',c:false}
+    ],
+    exp:'Correct. The agent proposes — the practitioner decides. The agent produces a structured draft RACM entry from the FD, which the practitioner then reviews, challenges, and refines. Some proposals will be accepted largely as drafted; others will need significant rework if the agent missed a nuance in the error handling specification or proposed a manual control where the FD supports an automated one. The value is that the practitioner starts from a structured draft rather than a blank page — not that the agent replaces the review process. Option A misrepresents the agent\'s role as completing rather than proposing. Option C invents a risk-based scoping rule that does not exist in the module. Option D removes FD review entirely, which is incorrect.'
+  },
+  {
+    q:'Which of the following assessment tasks can an AI agent reliably perform in the controls testing phase?',
+    opts:[
+      {t:'Determine whether the evidence provided for FIN-P2P-028 is sufficient for this specific client\'s external audit requirements.',c:false},
+      {t:'Assess whether the P2P Process Lead\'s sign-off on a monitoring report represents a genuine review or a perfunctory signature.',c:false},
+      {t:'Cross-reference the RACM against the programme test case library and flag controls with no corresponding test coverage.',c:true},
+      {t:'Evaluate whether a company code\'s 10% tolerance exception is credible given the client\'s stated policy rationale.',c:false}
+    ],
+    exp:'Correct. The AI agent\'s strength in the testing phase is cross-referencing at scale — mapping controls to test cases, identifying gaps, and flagging inconsistencies between evidence requirements and control types. This is structured pattern-matching across large volumes, which agents handle well. The other three options represent the limits of AI capability: Option A requires professional judgement about sufficiency for a specific engagement context. Option B requires scepticism about whether a formal action represents substantive review — agents can see the sign-off, not the absence of genuine review behind it. Option D requires evaluating the credibility of a client\'s explanation using relationship knowledge and business judgement that an agent does not have.'
+  },
+  {
+    q:'A practitioner says: "I\'ve been using an AI agent for gap analysis in Solution Confirmation and it\'s been great — I\'ve cut my analysis time in half. I now just accept whatever the agent produces." What is the problem with this approach?',
+    opts:[
+      {t:'Gap analysis in SolCon should always be done manually — AI agents are not reliable enough for early-phase work.',c:false},
+      {t:'Passive acceptance of agent outputs removes the practitioner\'s challenge and scepticism, which means the agent\'s errors, missed context, and incorrect assumptions will pass into the work product unchecked.',c:true},
+      {t:'The efficiency gain from AI-assisted gap analysis is not recognised by external auditors and should not be used on client-facing engagements.',c:false},
+      {t:'The practitioner should be using the agent for control proposal in Design and Build instead, where it adds more value than in SolCon.',c:false}
+    ],
+    exp:'Correct. The module distinguishes between two stances: passive acceptance (receives agent outputs, accepts without challenge) and critical engagement (develops working understanding, reviews with scepticism, applies professional judgement). Passive acceptance is the problem described — the efficiency gain is real, but so is the risk that errors, missed programme context, and incorrect control classifications pass through unchallenged. The practitioner\'s value in AI-assisted workflows is exactly this critical review. Option A incorrectly dismisses agent use in SolCon entirely. Option C introduces an auditor recognition constraint that does not exist in the module. Option D misconstrues the module\'s position on where agents add value — they add value across all three phases.'
+  },
+  {
+    q:'Under the "augment not replace" frame, which of the following correctly describes what changes in the practitioner\'s role when AI agents are integrated into the controls workstream?',
+    opts:[
+      {t:'The practitioner\'s accountability for the work product is shared with the AI agent that produced the initial draft.',c:false},
+      {t:'Information processing decreases in the practitioner\'s workload; judgement, relationship work, and accountability remain the same or increase.',c:true},
+      {t:'The practitioner becomes primarily responsible for configuring and managing the AI agent rather than performing controls work directly.',c:false},
+      {t:'The practitioner\'s role is fully preserved — nothing changes about how controls work is performed.',c:false}
+    ],
+    exp:'Correct. The attention-shift framework from the module: Information Processing = Less (agent handles triage and first drafts); Judgement = More (validating, challenging, contextualising agent outputs); Relationship Work = More (client credibility cannot be automated); Accountability = Same (professional sign-off cannot be delegated to an agent). The practitioner\'s role shifts in emphasis — less time on volume processing, more time on the judgements that matter. Option A incorrectly suggests accountability is shared — it is not. Professional accountability remains with the practitioner who signs off on the work. Option C reframes the practitioner as an AI manager, which misrepresents the model. Option D denies any change, which is also incorrect.'
+  },
+  {
+    q:'A controls lead is reviewing an AI agent\'s output from a current-state to future-state gap analysis. The agent has flagged 12 controls from the current-state framework as having no future-state equivalent. The controls lead reviews the list and notices that 3 of the flagged controls relate to a legacy VANTAGE ERP interface that IS being replaced by a new SAP-native interface with its own control designed earlier in the programme. What does this situation illustrate?',
+    opts:[
+      {t:'The AI agent made a systematic error and its gap analysis output cannot be trusted for this engagement.',c:false},
+      {t:'The controls lead should re-run the gap analysis with better input documents before proceeding.',c:false},
+      {t:'Gap analysis outputs require practitioner review with programme context — the agent identified a gap based on the artefacts it saw, but the practitioner recognises the replacement control exists elsewhere in the programme.',c:true},
+      {t:'The 3 flagged controls should be added to the RACM as gaps since the agent\'s output takes precedence over the practitioner\'s recollection.',c:false}
+    ],
+    exp:'Correct. This scenario illustrates exactly why practitioner review of agent outputs is essential. The agent performed its task correctly based on what it could see in the artefacts it was given — if the new SAP-native interface control was documented separately or not yet formally linked to the legacy gap, the agent would correctly flag the gap based on available information. The practitioner\'s value here is programme context: knowing that the replacement control exists and is already in the design. The agent\'s first-cut analysis is valuable — it raised 12 potential gaps, 9 of which may be genuine. The practitioner\'s review, not the agent\'s output alone, produces the reliable final picture. Option A overreacts — one miss does not invalidate the analysis. Option B adds unnecessary rework. Option D inverts the correct hierarchy: agent outputs are proposals, not decisions.'
+  }
+];
+
+let QS={idx:0,sel:null,answered:false,score:0};
+function renderQuestion(){if(QS.idx>=QUIZ.length){showScoreScreen();return;}const q=QUIZ[QS.idx];document.getElementById('quiz-counter').textContent=`Q${QS.idx+1} of ${QUIZ.length}`;document.getElementById('quiz-q-text').textContent=q.q;const opts=document.getElementById('quiz-options');opts.innerHTML='';['A','B','C','D'].forEach((ltr,i)=>{const btn=document.createElement('button');btn.className='quiz-option';btn.innerHTML=`<div class="quiz-option__marker">${ltr}</div><div class="quiz-option__text">${q.opts[i].t}</div>`;btn.addEventListener('click',()=>selectOpt(i));opts.appendChild(btn);});document.getElementById('quiz-feedback').className='quiz-feedback';document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.add('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx}`;QS.sel=null;QS.answered=false;}
+function selectOpt(i){if(QS.answered)return;QS.sel=i;document.querySelectorAll('.quiz-option').forEach((b,j)=>b.classList.toggle('selected',j===i));document.getElementById('quiz-check-btn').disabled=false;}
+function checkAnswer(){if(QS.sel===null||QS.answered)return;QS.answered=true;const q=QUIZ[QS.idx];const correct=q.opts[QS.sel].c;if(correct)QS.score++;document.querySelectorAll('.quiz-option').forEach((btn,i)=>{btn.classList.add('disabled');if(q.opts[i].c)btn.classList.add('correct');else if(i===QS.sel&&!correct)btn.classList.add('incorrect');});const fb=document.getElementById('quiz-feedback');fb.className=`quiz-feedback visible quiz-feedback--${correct?'correct':'incorrect'}`;document.getElementById('quiz-fb-icon').textContent=correct?'✅':'❌';document.getElementById('quiz-fb-text').textContent=q.exp;document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.remove('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx+1}`;}
+function nextQuestion(){QS.idx++;if(QS.idx>=QUIZ.length)showScoreScreen();else renderQuestion();}
+function showScoreScreen(){const pct=Math.round((QS.score/QUIZ.length)*100);const msgs=[[80,'🌟 Excellent. You understand the augment-not-replace frame and where AI capability boundaries lie.'],[60,'👍 Good work — passed. Review explanations on any questions you missed.'],[0,'📖 Not quite yet. Re-read the content sections and retake.']];const msg=msgs.find(m=>pct>=m[0]);document.getElementById('quiz-score-num').textContent=`${QS.score}/${QUIZ.length}`;document.getElementById('quiz-score-msg').textContent=msg[1];document.getElementById('quiz-question-wrap').classList.add('hidden');document.getElementById('quiz-score-screen').classList.remove('hidden');document.getElementById('quiz-footer').classList.add('hidden');document.getElementById('stat-score').textContent=`${pct}%`;if(pct>=60){document.getElementById('next-mod-btn').style.display='';setTimeout(()=>markComplete(pct),800);}}
+function restartQuiz(){QS={idx:0,sel:null,answered:false,score:0};document.getElementById('quiz-question-wrap').classList.remove('hidden');document.getElementById('quiz-score-screen').classList.add('hidden');document.getElementById('quiz-footer').classList.remove('hidden');renderQuestion();}
+
+function markComplete(score){localStorage.setItem(LS_COMPLETE_KEY,'true');(async function(){try{if(window.__sccSb&&window.__sccUserEmail){await window.__sccSb.from('sapexec_scc_progress').upsert({email:window.__sccUserEmail,module_id:'b9'},{onConflict:'email,module_id'});}}catch(e){console.warn('sapexec_scc_progress sync failed',e);}})();refreshSidebarProgress();const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);const mins=Math.max(1,Math.round((Date.now()-MODULE_START_MS)/60000));document.getElementById('stat-time').textContent=`${mins}m`;const banner=document.getElementById('completion-banner');if(banner){banner.classList.remove('hidden');setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'center'}),200);launchConfetti();}showToast('success','Module B9 Complete!','AI in Controls is marked complete. B10 is now unlocked.',4500);}
+function showAlreadyComplete(){const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);}
+function setProgress(pct){const bar=document.getElementById('mod-prog-bar');const txt=document.getElementById('mod-prog-pct');const ring=document.getElementById('ring-fill');if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=pct+'%';if(ring)ring.style.strokeDashoffset=100-pct;}
+function refreshSidebarProgress(){const done=LS_ALL_CODES.filter(c=>localStorage.getItem(`tib_module_${c.toLowerCase()}_complete`)==='true').length;const pct=Math.round((done/10)*100);const fill=document.getElementById('sidebar-prog-fill');const txt=document.getElementById('sidebar-prog-text');if(fill)fill.style.width=pct+'%';if(txt)txt.textContent=`${done} / 10 complete`;}
+const TAB_PROGRESS={content:25,concepts:55,quiz:80,tutor:92};
+function switchTab(btn,tabId){if(typeof btn==='string'){tabId=btn;btn=document.querySelector(`[data-tab="${tabId}"]`);}document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));if(btn)btn.classList.add('active');const panel=document.getElementById(`tab-${tabId}`);if(panel)panel.classList.add('active');if(localStorage.getItem(LS_COMPLETE_KEY)!=='true')setProgress(TAB_PROGRESS[tabId]||10);}
+document.getElementById('hamburger').addEventListener('click',()=>{const sb=document.getElementById('sidebar');const bd=document.getElementById('sidebar-backdrop');const open=sb.classList.toggle('open');bd.classList.toggle('active',open);});
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-backdrop').classList.remove('active');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+document.getElementById('main-scroll').addEventListener('scroll',function(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')return;const pct=Math.round((this.scrollTop/Math.max(1,this.scrollHeight-this.clientHeight))*100);setProgress(Math.min(pct,24));});
+function launchConfetti(){const wrap=document.getElementById('confetti-wrap');if(!wrap)return;wrap.innerHTML='';const cols=['1F7A8C','C65911','FFFFFF','5BB5C6','F0A070','1F3864','2AA860'];for(let i=0;i<60;i++){const el=document.createElement('div');el.className='confetti-piece';el.style.cssText=`left:${Math.random()*100}%;top:${-10-Math.random()*20}px;background:#${cols[Math.floor(Math.random()*cols.length)]};width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s;animation-delay:${Math.random()*0.8}s;`;wrap.appendChild(el);}}
+function showToast(type,title,msg,ms=4000){const icons={success:'✅',info:'ℹ️',warning:'⚠️',error:'❌'};const el=document.createElement('div');el.className=`toast toast--${type}`;el.innerHTML=`<div class="toast__icon">${icons[type]||'ℹ️'}</div><div><div class="toast__title">${title}</div><div class="toast__message">${msg}</div></div>`;document.getElementById('toasts').appendChild(el);setTimeout(()=>{el.style.cssText='opacity:0;transform:translateY(8px);transition:all 300ms ease;';setTimeout(()=>el.remove(),300);},ms);}
+
+const SYSTEM_PROMPT=`You are TIB AI Tutor — an expert SAP GRC and Internal Controls instructor for TIB Systems Inc.
+
+You are supporting Module B9: AI in Controls, from the SAP Controls & Compliance Training Programme.
+
+IMPORTANT SELF-REFERENTIAL CONTEXT: You are an example of the AI capability this module describes. You are processing the learner's questions and producing structured responses. The learner is deciding what to do with those responses. This is the augment-not-replace frame in action. You may acknowledge this directly when relevant — it makes the module content tangible.
+
+MODULE B9 CONTEXT:
+- AI agents add value in three phases:
+  1. Solution Confirmation: Gap analysis — agent ingests current-state + future-state artefacts, surfaces control gaps. Practitioner reviews. Shift: doing the analysis → reviewing the analysis.
+  2. Design & Build: Control proposal — agent ingests FDs, proposes draft RACM entries (description, type, nature). Practitioner starts from structured draft not blank page.
+  3. Testing: Coverage analysis — agent cross-references RACM against test case library, flags uncovered controls and mismatched evidence requirements.
+- Three limits of AI capability (what agents CANNOT do):
+  1. Professional judgement: whether evidence is sufficient for a specific engagement context
+  2. Client context: whether a company code exception explanation is credible
+  3. Professional scepticism: recognising that a sign-off is formal but not substantive
+- Augment not replace: agents PROPOSE, practitioners DECIDE.
+- Attention shift: Information Processing = Less · Judgement = More · Relationship Work = More · Accountability = Same
+- Two stances: Passive Acceptance (wrong) vs Critical Engagement (right)
+- Capstone line: "The practitioner's core skill set is not going away. It is becoming more valuable."
+
+TONE: Forward-looking, curious, grounded. Can be self-referential about your own nature as an AI tool. Quiz hints = conceptual nudge only.`;
+
+let chatHistory=[];
+async function sendChat(){const input=document.getElementById('chat-input');const sendBtn=document.getElementById('chat-send');const text=input.value.trim();if(!text)return;appendMsg('user',text);chatHistory.push({role:'user',content:text});input.value='';autoGrow(input);sendBtn.disabled=true;const typingId=appendTyping();try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:chatHistory})});if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}const data=await res.json();const reply=(data.content||[]).map(b=>b.type==='text'?b.text:'').join('');removeTyping(typingId);appendMsg('ai',reply);chatHistory.push({role:'assistant',content:reply});}catch(err){removeTyping(typingId);appendMsg('ai',`⚠️ Connection error: ${err.message}`);}finally{sendBtn.disabled=false;}}
+function appendMsg(role,text){const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className=`chat-message chat-message--${role}`;const initial=role==='ai'?'T':'U';const html=role==='ai'?text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code style="font-family:var(--font-mono);font-size:0.9em;background:var(--grey-100);padding:1px 5px;border-radius:3px;">$1</code>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>'):text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML=`<div class="chat-message__avatar">${initial}</div><div class="chat-message__bubble">${html}</div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;}
+function appendTyping(){const id=`typing-${Date.now()}`;const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className='chat-message chat-message--ai';el.id=id;el.innerHTML=`<div class="chat-message__avatar">T</div><div class="chat-message__bubble"><div class="chat-message__typing"><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div></div></div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;return id;}
+function removeTyping(id){const el=document.getElementById(id);if(el)el.remove();}
+function sendChip(btn){document.getElementById('chat-input').value=btn.textContent.trim();autoGrow(document.getElementById('chat-input'));sendChat();}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+(function boot(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')showAlreadyComplete();LS_ALL_CODES.forEach(c=>{const key=`tib_module_${c.toLowerCase()}_complete`;const item=document.querySelector(`[data-module="${c}"]`);if(item&&localStorage.getItem(key)==='true'){item.classList.add('complete');const icon=item.querySelector('.lms-nav-item__icon');if(icon)icon.textContent='✓';}});refreshSidebarProgress();renderQuestion();})();
+window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('tib_module_')){refreshSidebarProgress();if(e.key===LS_COMPLETE_KEY&&e.newValue==='true')showAlreadyComplete();}});
+</script>
+</body>
+</html>

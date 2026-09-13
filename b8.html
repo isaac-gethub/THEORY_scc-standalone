@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="scc-auth-guard.js"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B8 — Testing Phase | SAP Controls &amp; Compliance | TIB Systems Inc.</title>
+  <link rel="stylesheet" href="design-system.css" />
+  <style>
+    .hamburger{display:none;flex-direction:column;gap:5px;background:transparent;border:none;cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);flex-shrink:0;}
+    .hamburger span{display:block;width:22px;height:2px;background:rgba(255,255,255,0.80);border-radius:2px;}
+    @media(max-width:900px){.hamburger{display:flex;}.lms-header__divider{display:none;}}
+    .sidebar-backdrop{display:none;position:fixed;inset:0;top:var(--header-height);background:var(--bg-overlay);z-index:calc(var(--z-overlay) - 1);}
+    .sidebar-backdrop.active{display:block;}
+    .module-body h2{font-family:var(--font-display);font-size:var(--scale-2xl);color:var(--text-primary);letter-spacing:var(--tracking-tight);line-height:var(--leading-tight);margin-bottom:var(--space-4);margin-top:var(--space-10);}
+    .module-body h2:first-child{margin-top:0;}
+    .module-body h3{font-size:var(--scale-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);margin-top:var(--space-6);}
+    .module-body p{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);max-width:68ch;}
+    .module-body strong{color:var(--text-primary);font-weight:600;}
+    .module-body em{font-style:italic;color:var(--teal);}
+    .tx-code{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:0.85em;font-weight:600;background:var(--navy-faint);color:var(--navy);border:1px solid rgba(31,56,100,0.18);border-radius:var(--radius-sm);padding:1px 7px;}
+
+    /* ── EVIDENCE SUFFICIENCY CHECKER ── */
+    .esc-container{background:var(--navy);border-radius:var(--radius-2xl);padding:var(--space-6);margin:var(--space-6) 0;}
+    .esc-container__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:var(--space-2);}
+    .esc-container__title{font-size:var(--scale-base);font-weight:700;color:var(--white);margin-bottom:var(--space-1);}
+    .esc-container__sub{font-size:var(--scale-sm);color:rgba(255,255,255,0.40);margin-bottom:var(--space-5);line-height:1.5;}
+    .esc-buttons{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-5);}
+    .esc-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:var(--radius-xl);padding:var(--space-4) var(--space-4);cursor:pointer;text-align:left;transition:all 0.2s ease;display:flex;align-items:flex-start;gap:var(--space-3);}
+    .esc-btn:hover{background:rgba(255,255,255,0.10);border-color:rgba(255,255,255,0.22);}
+    .esc-btn.active-suf{background:rgba(26,122,74,0.18);border-color:rgba(26,122,74,0.45);}
+    .esc-btn.active-ins{background:rgba(198,42,31,0.18);border-color:rgba(198,42,31,0.45);}
+    .esc-btn__icon{width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;background:rgba(255,255,255,0.08);}
+    .esc-btn__text{flex:1;}
+    .esc-btn__title{font-size:var(--scale-sm);font-weight:700;color:var(--white);display:block;margin-bottom:2px;}
+    .esc-btn__desc{font-size:var(--scale-xs);color:rgba(255,255,255,0.40);line-height:1.4;}
+    .esc-verdict{display:none;border-radius:var(--radius-xl);padding:var(--space-5);margin-top:var(--space-2);}
+    .esc-verdict.visible{display:block;}
+    .esc-verdict--suf{background:rgba(26,122,74,0.15);border:1px solid rgba(26,122,74,0.35);}
+    .esc-verdict--ins{background:rgba(198,42,31,0.12);border:1px solid rgba(198,42,31,0.30);}
+    .esc-verdict__badge{font-size:var(--scale-xs);font-weight:700;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2);}
+    .esc-verdict--suf .esc-verdict__badge{color:rgba(26,122,74,0.90);}
+    .esc-verdict--ins .esc-verdict__badge{color:rgba(230,80,70,0.90);}
+    .esc-verdict__body{font-size:var(--scale-sm);color:rgba(255,255,255,0.65);line-height:var(--leading-relaxed);}
+    .esc-verdict__also{margin-top:var(--space-3);font-size:var(--scale-sm);color:rgba(255,255,255,0.50);line-height:1.5;}
+    .esc-verdict__also strong{color:rgba(198,42,31,0.80);}
+    .esc-reset{background:transparent;border:1px solid rgba(255,255,255,0.15);border-radius:var(--radius-pill);padding:4px 14px;font-size:var(--scale-xs);color:rgba(255,255,255,0.40);cursor:pointer;font-family:var(--font-body);transition:all 0.2s ease;}
+    .esc-reset:hover{border-color:rgba(255,255,255,0.30);color:rgba(255,255,255,0.65);}
+
+    /* ── SIT/UAT ACCORDION ── */
+    .sit-uat-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5);margin:var(--space-5) 0 var(--space-8);}
+    .sit-card,.uat-card{border-radius:var(--radius-2xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .sit-card__header{background:var(--teal);padding:var(--space-3) var(--space-5);}
+    .uat-card__header{background:var(--navy);padding:var(--space-3) var(--space-5);}
+    .sit-card__header span,.uat-card__header span{font-size:var(--scale-base);font-weight:700;color:var(--white);}
+    .sit-card__body,.uat-card__body{background:var(--white);border:1px solid var(--grey-100);border-top:none;padding:var(--space-4) var(--space-5);}
+
+    /* ── DECISION ACCORDION ── */
+    .dec-item{margin-bottom:var(--space-3);}
+    .dec-trigger{width:100%;background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-xl);cursor:pointer;display:flex;align-items:center;gap:var(--space-4);padding:var(--space-4) var(--space-5);text-align:left;transition:all var(--transition-base);}
+    .dec-trigger:hover{background:var(--grey-50);}
+    .dec-trigger.open{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-color:transparent;}
+    .dec-trigger__num{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:var(--scale-sm);font-weight:700;color:var(--white);flex-shrink:0;}
+    .dec-trigger__text{flex:1;}
+    .dec-trigger__title{font-size:var(--scale-base);font-weight:700;color:var(--text-primary);display:block;}
+    .dec-trigger__sub{font-size:var(--scale-xs);color:var(--text-muted);display:block;margin-top:1px;}
+    .dec-trigger__chevron{width:18px;height:18px;flex-shrink:0;transition:transform 0.25s ease;color:var(--text-muted);}
+    .dec-trigger.open .dec-trigger__chevron{transform:rotate(180deg);}
+    .dec-panel{display:none;background:var(--white);border:1px solid var(--grey-100);border-top:none;border-radius:0 0 var(--radius-xl) var(--radius-xl);padding:var(--space-5) var(--space-6);}
+    .dec-panel.open{display:block;}
+
+    /* ── TESTING CAPTAIN DIAGRAM ── */
+    .captain-diagram{display:flex;flex-direction:column;align-items:center;gap:0;margin:var(--space-5) 0;}
+    .cap-box{padding:var(--space-3) var(--space-6);border-radius:var(--radius-xl);font-size:var(--scale-sm);font-weight:700;text-align:center;min-width:200px;}
+    .cap-arrow{font-size:1.2rem;color:var(--teal);margin:var(--space-2) 0;}
+    .cap-testers{display:flex;gap:var(--space-3);margin-top:var(--space-2);}
+    .cap-tester{padding:var(--space-2) var(--space-4);border-radius:var(--radius-lg);background:var(--navy-faint);border:1px solid rgba(31,56,100,0.15);font-size:var(--scale-xs);color:var(--navy);font-weight:600;}
+
+    /* ── WAR STORY ── */
+    .war-story{background:var(--navy);border:1px solid rgba(31,122,140,0.25);border-left:4px solid var(--teal);border-radius:var(--radius-xl);padding:var(--space-5);margin:var(--space-5) 0;}
+    .war-story__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--teal-light);margin-bottom:var(--space-3);}
+    .war-story__body{font-size:var(--scale-sm);color:rgba(255,255,255,0.60);line-height:var(--leading-relaxed);}
+
+    .ring-svg{transform:rotate(-90deg);}
+    .ring-bg{fill:none;stroke:var(--grey-100);stroke-width:3;}
+    .ring-fill{fill:none;stroke:var(--teal);stroke-width:3;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 600ms ease;}
+    .confetti-piece{position:absolute;border-radius:2px;animation:confettiFall linear forwards;}
+
+    @media(max-width:900px){
+      .lms-sidebar{position:fixed;left:0;top:var(--header-height);bottom:0;z-index:var(--z-overlay);transform:translateX(-100%);transition:transform var(--transition-slow);}
+      .lms-sidebar.open{transform:translateX(0);box-shadow:var(--shadow-xl);}
+      .lms-content{padding:var(--space-6) var(--space-5) var(--space-16);}
+      .module-hero{padding:var(--space-8) var(--space-5);}
+      .esc-buttons{grid-template-columns:1fr;}
+      .sit-uat-grid{grid-template-columns:1fr;}
+    }
+    @media(max-width:600px){.module-nav-footer__context{display:none;}}
+  </style>
+</head>
+<body>
+<div class="lms-app" id="app">
+
+  <header class="lms-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    <a href="../index.html" class="lms-header__logo">
+      <div class="lms-header__logo-mark">T</div>
+      <div class="lms-header__brand"><span class="lms-header__brand-name">TIB Systems</span><span class="lms-header__brand-sub">Powered by TIB Systems Inc.</span></div>
+    </a>
+    <div class="lms-header__divider"></div>
+    <div class="lms-header__prog"><div class="lms-header__prog-name">SAP Controls &amp; Compliance Training Programme</div><div class="lms-header__prog-sub">10-Module Practitioner Path</div></div>
+    <div class="lms-header__actions">
+      <a href="../index.html" class="btn btn-ghost btn--sm" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.70);font-size:var(--scale-xs);">← All Modules</a>
+      <div class="badge badge--teal" id="header-status-badge">In Progress</div>
+    </div>
+  </header>
+
+  <div class="lms-body">
+    <aside class="lms-sidebar" id="sidebar">
+      <div class="lms-sidebar__section-label">Foundation</div>
+      <button class="lms-nav-item" data-module="B1" onclick="location.href='b1.html'"><div class="lms-nav-item__icon">B1</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Risk Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B2" onclick="location.href='b2.html'"><div class="lms-nav-item__icon">B2</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B3" onclick="location.href='b3.html'"><div class="lms-nav-item__icon">B3</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Nature</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B4" onclick="location.href='b4.html'"><div class="lms-nav-item__icon">B4</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Why Controls Matter</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Applied</div>
+      <button class="lms-nav-item" data-module="B5" onclick="location.href='b5.html'"><div class="lms-nav-item__icon">B5</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Engagement Types</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item" data-module="B6" onclick="location.href='b6.html'"><div class="lms-nav-item__icon">B6</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">S/4HANA Lifecycle</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item" data-module="B7" onclick="location.href='b7.html'"><div class="lms-nav-item__icon">B7</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Reading FD Documents</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Advanced</div>
+      <button class="lms-nav-item active" data-module="B8"><div class="lms-nav-item__icon">B8</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Testing Phase</div><div class="lms-nav-item__subtitle">Current module</div></div><div class="lms-nav-item__badge"></div></button>
+      <button class="lms-nav-item" data-module="B9" onclick="location.href='b9.html'"><div class="lms-nav-item__icon">B9</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">AI in Controls</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Capstone</div>
+      <button class="lms-nav-item" data-module="B10" onclick="location.href='b10.html'"><div class="lms-nav-item__icon">B10</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Practitioner Capstone</div><div class="lms-nav-item__subtitle">Capstone</div></div></button>
+      <div style="margin-top:auto;padding:var(--space-5);border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:var(--scale-2xs);color:rgba(255,255,255,0.30);letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-2);">Programme Progress</div>
+        <div class="progress-bar" style="height:5px;background:rgba(255,255,255,0.10);"><div class="progress-bar__fill" id="sidebar-prog-fill" style="width:0%;"></div></div>
+        <div style="font-family:var(--font-mono);font-size:var(--scale-2xs);color:rgba(255,255,255,0.35);margin-top:var(--space-2);" id="sidebar-prog-text">0 / 10 complete</div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+    <main class="lms-main" id="main-scroll">
+      <div class="module-progress-strip">
+        <span class="module-progress-strip__label">Module Progress</span>
+        <div class="module-progress-strip__bar"><div class="progress-bar"><div class="progress-bar__fill" id="mod-prog-bar" style="width:10%;"></div></div></div>
+        <span class="module-progress-strip__pct" id="mod-prog-pct">10%</span>
+      </div>
+
+      <div class="module-hero">
+        <div class="module-hero__inner">
+          <div class="module-hero__eyebrow"><span class="module-hero__code">B8</span><span class="module-hero__prog-label">SAP Controls &amp; Compliance Training Programme</span></div>
+          <h1 class="module-hero__title"><em>Testing Phase</em> — Three Decisions</h1>
+          <p class="module-hero__desc">Testing is where controls earn their credibility — or expose their gaps. Three decisions determine how effective your testing phase will be: what counts as sufficient evidence, how to scope SIT versus UAT, and how to anchor your coordination through the testing captain.</p>
+          <div class="module-hero__meta">
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="module-hero__meta-text">10–12 min · 3 decisions · Advanced</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span class="module-hero__meta-text">Evidence sufficiency checker · 4 MCQs · AI Tutor</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="module-hero__meta-text" id="hero-status">In progress</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lms-content">
+
+        <div class="learning-objectives animate-fade-in">
+          <div class="learning-objectives__header">
+            <div class="icon-circle icon-circle--md icon-circle--navy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <span class="learning-objectives__title">Learning Objectives</span>
+          </div>
+          <div class="learning-objectives__list">
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>define sufficient evidence</strong> for config, transactional, and ITDM controls testing — including the company-code cross-check and why positive scenarios alone are not enough.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>apply the SIT vs UAT scope split</strong> based on control nature and explain why automated controls tested in SIT do not need to be re-run in UAT.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>set up and use the testing captain model</strong> — identifying the anchor, integrating controls requirements into test cases before testing starts, and managing re-test requests efficiently.</span></div>
+          </div>
+        </div>
+
+        <div class="tabs animate-fade-in">
+          <div class="tabs__nav" role="tablist">
+            <button class="tab-btn active" role="tab" data-tab="content"  onclick="switchTab(this,'content')">📖 Content</button>
+            <button class="tab-btn"        role="tab" data-tab="concepts" onclick="switchTab(this,'concepts')">🗂 Key Concepts</button>
+            <button class="tab-btn"        role="tab" data-tab="quiz"     onclick="switchTab(this,'quiz')">✏️ Knowledge Check</button>
+            <button class="tab-btn"        role="tab" data-tab="tutor"    onclick="switchTab(this,'tutor')">🤖 AI Tutor</button>
+          </div>
+
+          <!-- ══ TAB: CONTENT ══ -->
+          <div class="tab-panel active" id="tab-content">
+            <div class="module-body">
+
+              <h2 id="d1">Decision 1 · What Counts as Sufficient Evidence?</h2>
+
+              <p>Testing is the best and last chance to see if the controls will actually work as expected. The evidence standard determines whether your test result is defensible — to your client, to an external auditor, and to your own quality review. Each test category has a different evidence standard.</p>
+
+              <!-- War story -->
+              <div class="war-story">
+                <div class="war-story__label">🏭 Field Example — Major Energy Sector Engagement</div>
+                <div class="war-story__body">On a major energy sector engagement, the three-way match configuration test involved navigating to <strong>SPRO</strong> → the tolerance key path → confirming the tolerance limits were set. The design specified a 3% threshold. What the system showed: <strong>2% for both quantity and price variance</strong>. More restrictive than designed — test result: Pass. But the value-add came next: reviewing all company codes, not just one. Most showed 2–3%. One showed <strong>10%</strong>. That exception needed a policy justification or a correction. A practitioner who checked only the first company code would have missed it.</div>
+              </div>
+
+              <h3>Evidence Standard by Test Category</h3>
+
+              <div class="dec-item">
+                <button class="dec-trigger" onclick="toggleDec(this)">
+                  <div class="dec-trigger__num" style="background:var(--teal);">⚙️</div>
+                  <div class="dec-trigger__text"><span class="dec-trigger__title">Configuration Testing</span><span class="dec-trigger__sub">SPRO path · tolerance values · company code cross-check</span></div>
+                  <svg class="dec-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="dec-panel">
+                  <p><strong>Insufficient:</strong> A screenshot showing "three-way match active" or "workflow enabled." This proves existence — not appropriateness.</p>
+                  <p><strong>Sufficient:</strong> Three components required:</p>
+                  <div class="step-block"><div class="step-block__number">01</div><div class="step-block__content"><div class="step-block__title">Navigation path</div><div class="step-block__text">Screenshot showing the exact SPRO or transaction path taken to reach the configuration setting. Not just the result screen — the path to it.</div></div></div>
+                  <div class="step-block"><div class="step-block__number">02</div><div class="step-block__content"><div class="step-block__title">Value confirmation</div><div class="step-block__text">Screenshot showing the specific tolerance or threshold value — e.g. 2% for quantity variance and 2% for price variance. Compared against the design threshold in the RACM.</div></div></div>
+                  <div class="step-block"><div class="step-block__number">03</div><div class="step-block__content"><div class="step-block__title">Company code cross-check</div><div class="step-block__text">All relevant company codes reviewed. Any exception to the standard value is documented. If one company code has 10% where all others have 3%, that exception requires a policy justification or correction before go-live.</div></div></div>
+                </div>
+              </div>
+
+              <div class="dec-item">
+                <button class="dec-trigger" onclick="toggleDec(this)">
+                  <div class="dec-trigger__num" style="background:var(--navy);">💳</div>
+                  <div class="dec-trigger__text"><span class="dec-trigger__title">Transactional Testing</span><span class="dec-trigger__sub">Positive AND negative scenario — both required</span></div>
+                  <svg class="dec-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="dec-panel">
+                  <p><strong>The rule:</strong> Every transactional test requires a positive scenario AND a negative scenario. A test plan with only positive scenarios does not prove a control blocks what it should block.</p>
+                  <div class="grid-2" style="margin:var(--space-4) 0;">
+                    <div style="background:var(--color-success-light);border:1px solid rgba(26,122,74,0.20);border-radius:var(--radius-xl);padding:var(--space-4);">
+                      <div style="font-size:var(--scale-xs);font-weight:700;color:var(--color-success);margin-bottom:var(--space-2);">✅ POSITIVE SCENARIO</div>
+                      <div style="font-size:var(--scale-sm);color:var(--text-secondary);">Compliant transaction processes correctly. For three-way match: invoice within 2% tolerance is posted — no block fired.</div>
+                      <div style="font-size:var(--scale-xs);color:var(--text-muted);margin-top:var(--space-2);">Purpose: confirms no false positives.</div>
+                    </div>
+                    <div style="background:var(--color-error-light);border:1px solid rgba(198,42,31,0.20);border-radius:var(--radius-xl);padding:var(--space-4);">
+                      <div style="font-size:var(--scale-xs);font-weight:700;color:var(--color-error);margin-bottom:var(--space-2);">❌ NEGATIVE SCENARIO</div>
+                      <div style="font-size:var(--scale-sm);color:var(--text-secondary);">Non-compliant transaction is blocked. For three-way match: invoice exceeding 2% tolerance — system blocks posting and generates blocking reason code.</div>
+                      <div style="font-size:var(--scale-xs);color:var(--text-muted);margin-top:var(--space-2);">Purpose: confirms the control actually blocks what it should.</div>
+                    </div>
+                  </div>
+                  <div class="callout callout--warning"><div class="callout__icon">⚠️</div><div class="callout__body"><div class="callout__title">The Most Common Transactional Testing Deficiency</div><div class="callout__text">Test plans that contain only positive scenarios. When this happens: push back. "We do not want to just see the happy path. We want to see what happens when it works and what happens when it does not work as expected."</div></div></div>
+                </div>
+              </div>
+
+              <!-- Interactive Evidence Sufficiency Checker -->
+              <div class="esc-container">
+                <div class="esc-container__label">🔍 Interactive Tool</div>
+                <div class="esc-container__title">Evidence Sufficiency Checker</div>
+                <div class="esc-container__sub">Select a screenshot type to see whether it constitutes sufficient audit evidence — and why.</div>
+                <div class="esc-buttons">
+                  <button class="esc-btn" id="esc-a" onclick="showVerdict('a')">
+                    <div class="esc-btn__icon">🖥️</div>
+                    <div class="esc-btn__text"><span class="esc-btn__title">Screenshot A</span><span class="esc-btn__desc">SAP screen showing "Tolerance Key active" — no path, no value displayed</span></div>
+                  </button>
+                  <button class="esc-btn" id="esc-b" onclick="showVerdict('b')">
+                    <div class="esc-btn__icon">📐</div>
+                    <div class="esc-btn__text"><span class="esc-btn__title">Screenshot B</span><span class="esc-btn__desc">SPRO path screenshot + OMR6 screen showing 2% quantity and price variance for one company code</span></div>
+                  </button>
+                  <button class="esc-btn" id="esc-c" onclick="showVerdict('c')">
+                    <div class="esc-btn__icon">✅</div>
+                    <div class="esc-btn__text"><span class="esc-btn__title">Screenshot C</span><span class="esc-btn__desc">Positive test scenario: invoice within tolerance posted successfully — system log shown</span></div>
+                  </button>
+                  <button class="esc-btn" id="esc-d" onclick="showVerdict('d')">
+                    <div class="esc-btn__icon">🔄</div>
+                    <div class="esc-btn__text"><span class="esc-btn__title">Screenshot D</span><span class="esc-btn__desc">Positive scenario (invoice passed) + negative scenario (invoice blocked + blocking reason code)</span></div>
+                  </button>
+                </div>
+                <div class="esc-verdict esc-verdict--ins" id="esc-verdict-a">
+                  <div class="esc-verdict__badge">❌ Insufficient</div>
+                  <div class="esc-verdict__body">This screenshot proves <strong>existence</strong> — the tolerance key is active — but not <strong>appropriateness</strong>. You cannot tell from this screen what the tolerance value is, whether it matches the control design, or whether any company code exceptions exist.</div>
+                  <div class="esc-verdict__also"><strong>You also need:</strong> The SPRO navigation path screenshot, the specific tolerance percentage values (quantity variance and price variance), and a cross-check across all company codes.</div>
+                </div>
+                <div class="esc-verdict esc-verdict--ins" id="esc-verdict-b">
+                  <div class="esc-verdict__badge">⚠️ Partially Sufficient — Missing Company Code Cross-Check</div>
+                  <div class="esc-verdict__body">Good progress — the SPRO path establishes navigation and the OMR6 screen shows the specific tolerance values (2% quantity and price). This is better than Screenshot A and covers two of the three required components.</div>
+                  <div class="esc-verdict__also"><strong>You also need:</strong> A cross-check across all company codes. If most show 2% but one shows 10%, that exception must be investigated and either justified by policy or corrected before go-live. Checking one company code is not sufficient.</div>
+                </div>
+                <div class="esc-verdict esc-verdict--ins" id="esc-verdict-c">
+                  <div class="esc-verdict__badge">❌ Insufficient — Missing Negative Scenario</div>
+                  <div class="esc-verdict__body">A positive scenario confirms the control does not block valid transactions — it rules out false positives. But it does not prove the control actually fires when it should.</div>
+                  <div class="esc-verdict__also"><strong>You also need:</strong> A negative scenario — a transaction that exceeds the tolerance — resulting in a system block and a blocking reason code. Without this, you have not tested the control's core function.</div>
+                </div>
+                <div class="esc-verdict esc-verdict--suf" id="esc-verdict-d">
+                  <div class="esc-verdict__badge">✅ Sufficient — for Transactional Testing</div>
+                  <div class="esc-verdict__body">Both scenarios are present: a positive scenario (compliant transaction processes without a block) and a negative scenario (non-compliant transaction triggers the system block with a blocking reason code). This is sufficient evidence that the control is operating as designed for transactional testing purposes.</div>
+                  <div class="esc-verdict__also" style="color:rgba(26,122,74,0.70);"><strong>Remember:</strong> This covers transactional testing only. A complete test package for a configured automated control also requires the configuration evidence (Screenshot B + company code cross-check) as a separate test step.</div>
+                </div>
+                <div style="margin-top:var(--space-4);display:flex;justify-content:flex-end;">
+                  <button class="esc-reset" onclick="resetESC()">Reset checker</button>
+                </div>
+              </div>
+
+              <!-- ────────────────────────────────── -->
+              <h2 id="d2">Decision 2 · SIT vs UAT Scope</h2>
+
+              <p>Which controls belong in System Integration Testing, and which belong in User Acceptance Testing? The split is based on <strong>control nature</strong> — not risk rating, not design ownership.</p>
+
+              <div class="sit-uat-grid">
+                <div class="sit-card">
+                  <div class="sit-card__header"><span>⚙️ SIT — System Integration Testing</span></div>
+                  <div class="sit-card__body">
+                    <p style="margin:0 0 var(--space-3);font-size:var(--scale-sm);color:var(--text-secondary);"><strong>Rule:</strong> Configuration and automated controls — those that operate without human intervention.</p>
+                    <p style="margin:0 0 var(--space-3);font-size:var(--scale-sm);color:var(--text-secondary);">The system itself is being validated. Technical testers are executing functional test cases. Controls requirements are integrated into the programme test scripts — testers execute and produce the required evidence in one pass.</p>
+                    <div style="background:var(--teal-faint);border-radius:var(--radius-lg);padding:var(--space-3);">
+                      <div style="font-size:var(--scale-2xs);font-weight:700;color:var(--teal);margin-bottom:var(--space-1);">SIT EXAMPLES</div>
+                      <div style="font-size:var(--scale-xs);color:var(--text-muted);">Three-way match tolerance (OMR6) · Vendor master workflow configuration · Duplicate invoice block · Payment run SoD restriction</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="uat-card">
+                  <div class="uat-card__header"><span>👤 UAT — User Acceptance Testing</span></div>
+                  <div class="uat-card__body">
+                    <p style="margin:0 0 var(--space-3);font-size:var(--scale-sm);color:var(--text-secondary);"><strong>Rule:</strong> ITDM and manual controls — those that require human review and action.</p>
+                    <p style="margin:0 0 var(--space-3);font-size:var(--scale-sm);color:var(--text-secondary);">Business users are in the system. They can demonstrate they can perform the required review steps — generate the report, investigate exceptions, sign off. Both the IT component and the human component are evidenced.</p>
+                    <div style="background:var(--navy-faint);border-radius:var(--radius-lg);padding:var(--space-3);">
+                      <div style="font-size:var(--scale-2xs);font-weight:700;color:var(--navy);margin-bottom:var(--space-1);">UAT EXAMPLES</div>
+                      <div style="font-size:var(--scale-xs);color:var(--text-muted);">PR Interface Monitoring Report Review · Vendor Change Report Review · Period-End Close Checklist · Emergency PO Authorisation Review</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="callout callout--info"><div class="callout__icon">💡</div><div class="callout__body"><div class="callout__title">Why Automated Controls Don't Need to Be Re-Run in UAT</div><div class="callout__text">Configuration controls validated in SIT do not change between SIT and UAT — the system configuration is the same. Re-running them in UAT consumes business user time and testing programme capacity without adding audit value. The efficiency gain from the SIT/UAT split is real — on a programme with 300 controls, it can eliminate dozens of unnecessary UAT test cycles.</div></div></div>
+
+              <!-- ────────────────────────────────── -->
+              <h2 id="d3">Decision 3 · The Coordination Anchor — Testing Captain</h2>
+
+              <p>How do you maintain evidence quality across a testing programme with dozens of testers, hundreds of test cases, and multiple coordination layers? The testing captain is the answer.</p>
+
+              <div class="captain-diagram">
+                <div class="cap-box" style="background:var(--teal);color:var(--white);">Controls Team</div>
+                <div class="cap-arrow">↓ single channel</div>
+                <div class="cap-box" style="background:var(--amber);color:var(--white);">Testing Captain</div>
+                <div class="cap-arrow">↓ coordinates</div>
+                <div class="cap-testers">
+                  <div class="cap-tester">Tester 1</div>
+                  <div class="cap-tester">Tester 2</div>
+                  <div class="cap-tester">Tester 3</div>
+                  <div class="cap-tester">⋯</div>
+                </div>
+              </div>
+
+              <div class="dec-item">
+                <button class="dec-trigger" onclick="toggleDec(this)">
+                  <div class="dec-trigger__num" style="background:var(--amber);">🎯</div>
+                  <div class="dec-trigger__text"><span class="dec-trigger__title">Why the Testing Captain Model Works</span><span class="dec-trigger__sub">Without it: thousands of email threads. With it: one channel, consistent standards.</span></div>
+                  <svg class="dec-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="dec-panel">
+                  <p>A testing captain is the coordinator for a group of testers in the programme's testing structure. They are not necessarily senior — they may be a test coordinator or team lead from the system integrator's testing organisation. What they provide is a <strong>single point of contact</strong> for evidence requests, rework, and re-execution.</p>
+                  <p>Without the testing captain model: the controls team chases each individual tester directly. Each tester may interpret evidence requirements differently. Re-test requests are managed across hundreds of separate email threads. Evidence quality is inconsistent.</p>
+                  <p>With the testing captain model: evidence requests go to one person. The captain enforces consistent standards across their tester group. Re-test requests are coordinated through one channel. The controls team's time is spent reviewing evidence, not chasing individuals.</p>
+                </div>
+              </div>
+
+              <div class="dec-item">
+                <button class="dec-trigger" onclick="toggleDec(this)">
+                  <div class="dec-trigger__num" style="background:var(--color-success);">📋</div>
+                  <div class="dec-trigger__text"><span class="dec-trigger__title">Integration Before Testing Starts — Four Steps</span><span class="dec-trigger__sub">Set up in Design and Build. Pay back in Testing.</span></div>
+                  <svg class="dec-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="dec-panel">
+                  <div class="step-block"><div class="step-block__number">01</div><div class="step-block__content"><div class="step-block__title">Map controls to test cases</div><div class="step-block__text">Before testing begins, review each programme test case and identify which controls it exercises. Add the RACM control reference to the test case metadata.</div></div></div>
+                  <div class="step-block"><div class="step-block__number">02</div><div class="step-block__content"><div class="step-block__title">Add controls requirements to test scripts</div><div class="step-block__text">For each mapped test case, add the specific controls testing requirements as additional steps. When a tester opens the test case, they see both the programme requirement and the controls requirement in the same document.</div></div></div>
+                  <div class="step-block"><div class="step-block__number">03</div><div class="step-block__content"><div class="step-block__title">Specify evidence requirements upfront</div><div class="step-block__text">Publish the evidence requirements before testing starts — exactly which screenshots, system logs, or outputs are needed for each control test. Agree with the testing captain before the first test is executed.</div></div></div>
+                  <div class="step-block"><div class="step-block__number">04</div><div class="step-block__content"><div class="step-block__title">Define the re-test mechanism</div><div class="step-block__text">Define in advance: who decides if evidence is insufficient, who communicates the re-test request, and what the SLA is. The testing captain is the communication channel. Setting this up before testing starts eliminates the friction of chasing re-executions mid-programme.</div></div></div>
+                  <div class="callout callout--success" style="margin-top:var(--space-4);"><div class="callout__icon">✅</div><div class="callout__body"><div class="callout__title">The Practitioner's Payoff</div><div class="callout__text">Setting this up takes effort in Design and Build. It pays back in the Testing phase every time you do not have to chase a re-execution.</div></div></div>
+                </div>
+              </div>
+
+              <div class="callout callout--success"><div class="callout__icon">✅</div><div class="callout__body"><div class="callout__title">All Three Decisions Complete</div><div class="callout__text">You have reviewed Module B8. Proceed to <strong>Key Concepts</strong> for a structured recall review, or go directly to the <strong>Knowledge Check</strong>. A passing score of 60% marks this module complete and unlocks Module B9.</div></div></div>
+
+            </div>
+          </div><!-- /tab-content -->
+
+          <!-- ══ TAB: KEY CONCEPTS ══ -->
+          <div class="tab-panel" id="tab-concepts">
+            <div style="font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-4);">Three Testing Decisions</div>
+            <div class="grid-3" style="margin-bottom:var(--space-6);">
+              <div class="concept-card"><div class="concept-card__accent"></div><div class="concept-card__body"><div class="concept-card__label">Decision 01</div><div class="concept-card__title">Sufficient Evidence</div><div class="concept-card__body-text">Config: SPRO path + tolerance value + all company codes. Transactional: positive AND negative scenarios. ITDM: system report accuracy + human review sign-off + exception follow-up.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--navy"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--navy">Decision 02</div><div class="concept-card__title">SIT vs UAT Scope</div><div class="concept-card__body-text">Split by control NATURE (not risk). Automated/config → SIT. ITDM/manual → UAT. Automated controls tested in SIT need not be re-run in UAT.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--amber"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--amber">Decision 03</div><div class="concept-card__title">Testing Captain</div><div class="concept-card__body-text">Single point of contact per tester group. Set up before testing starts. Map controls to test cases + specify evidence requirements + define re-test mechanism upfront.</div></div></div>
+            </div>
+
+            <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Key Definitions</div><div class="section-divider__line"></div></div>
+
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Positive / Negative Test Scenario</span></div><div class="key-term__definition">Positive scenario: a compliant transaction that should process without a block — confirms no false positives. Negative scenario: a non-compliant transaction that should be blocked — confirms the control fires when required. Both are required for transactional testing. A test plan with only positive scenarios does not prove a control is operating as designed.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Company Code Cross-Check</span></div><div class="key-term__definition">The practice of reviewing configuration settings across all relevant SAP company codes, not just the primary one. Tolerance keys, workflow thresholds, and other configuration settings may be set at the company code level. An exception — one company code at 10% when all others are at 3% — must be investigated and either justified by policy or corrected before go-live.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">SIT vs UAT Scope Split</span></div><div class="key-term__definition">The decision about which controls to test in System Integration Testing versus User Acceptance Testing. Based on control nature: automated/configuration controls go to SIT (system being validated technically); ITDM and manual controls go to UAT (business users demonstrating the human element). The split distributes workload and prevents unnecessary re-testing.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Testing Captain</span></div><div class="key-term__definition">The coordinator for a group of testers in the programme's testing structure. The controls team's single point of contact for evidence requests, rework instructions, and re-test coordination within that tester group. The testing captain model eliminates the need to chase individual testers directly and enforces consistent evidence standards across the group.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Concept</span><span class="key-term__word">Integration Before Testing Starts</span></div><div class="key-term__definition">The practice of mapping controls to programme test cases, adding controls testing requirements to test scripts, specifying evidence requirements, and defining the re-test mechanism — all before the first test is executed. This work is done in Design and Build. It eliminates the most common source of testing phase friction: insufficient evidence discovered mid-testing with no pre-agreed process for rework.</div></div>
+          </div><!-- /tab-concepts -->
+
+          <!-- ══ TAB: QUIZ ══ -->
+          <div class="tab-panel" id="tab-quiz">
+            <div class="quiz-block">
+              <div class="quiz-block__header"><div class="quiz-block__icon">✏️</div><div class="quiz-block__title">Knowledge Check — B8 Testing Phase</div><div class="quiz-block__counter" id="quiz-counter">Q1 of 4</div></div>
+              <div class="quiz-block__body" id="quiz-body">
+                <div id="quiz-question-wrap">
+                  <div class="quiz-question" id="quiz-q-text">Loading…</div>
+                  <div class="quiz-options" id="quiz-options"></div>
+                  <div class="quiz-feedback" id="quiz-feedback"><div class="quiz-feedback__icon" id="quiz-fb-icon"></div><div class="quiz-feedback__text" id="quiz-fb-text"></div></div>
+                </div>
+                <div class="quiz-score-display hidden" id="quiz-score-screen">
+                  <div class="quiz-score-display__number" id="quiz-score-num">—</div>
+                  <div class="quiz-score-display__label">Your Score</div>
+                  <div style="margin-top:var(--space-4);font-size:var(--scale-sm);color:var(--text-secondary);max-width:40ch;margin-left:auto;margin-right:auto;" id="quiz-score-msg"></div>
+                  <div style="margin-top:var(--space-8);display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="restartQuiz()">Retake Quiz</button>
+                    <button class="btn btn-primary" onclick="switchTab(document.querySelector('[data-tab=tutor]'),'tutor')">Ask AI Tutor</button>
+                    <button class="btn btn-navy" id="next-mod-btn" onclick="location.href='b9.html'" style="display:none;">Next: B9 →</button>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-block__footer" id="quiz-footer">
+                <div style="font-size:var(--scale-xs);color:var(--text-muted);"><span id="quiz-score-track">Score: 0 / 0</span></div>
+                <div style="display:flex;gap:var(--space-3);">
+                  <button class="btn btn-ghost btn--sm" id="quiz-check-btn" onclick="checkAnswer()" disabled>Check Answer</button>
+                  <button class="btn btn-primary btn--sm hidden" id="quiz-next-btn" onclick="nextQuestion()">Next →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ TAB: AI TUTOR ══ -->
+          <div class="tab-panel" id="tab-tutor">
+            <div class="ai-tutor">
+              <div class="ai-tutor__header">
+                <div class="ai-tutor__avatar">🤖</div>
+                <div class="ai-tutor__info"><div class="ai-tutor__name">TIB AI Tutor</div><div class="ai-tutor__status"><div class="ai-tutor__status-dot"></div>Ready — Module B8 context loaded</div></div>
+                <div class="ai-tutor__badge">Powered by Claude</div>
+              </div>
+              <div class="ai-tutor__messages" id="chat-messages">
+                <div class="chat-message chat-message--ai"><div class="chat-message__avatar">T</div><div class="chat-message__bubble">👋 Welcome to Module B8 — <strong>Testing Phase</strong>.<br><br>I have full context on the three testing decisions: sufficient evidence standards, the SIT vs UAT scope split, and the testing captain coordination model. I can walk you through any of these using the major energy sector engagement examples, or help you think through how to apply them on a specific testing scenario you're dealing with.</div></div>
+              </div>
+              <div class="ai-tutor__prompt-row">
+                <button class="prompt-chip" onclick="sendChip(this)">What makes config evidence sufficient?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Why do we need a negative scenario?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Which controls go in SIT vs UAT?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">How do I find the testing captain?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What is the company code cross-check?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Integration before testing starts</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Give me a quiz hint</button>
+              </div>
+              <div class="ai-tutor__input-row">
+                <textarea class="ai-tutor__textarea" id="chat-input" placeholder="Ask anything about Module B8 — Testing Phase…" rows="1" onkeydown="handleChatKey(event)" oninput="autoGrow(this)"></textarea>
+                <button class="ai-tutor__send" id="chat-send" onclick="sendChat()" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /tabs -->
+
+        <div class="completion-banner hidden" id="completion-banner">
+          <div class="completion-banner__confetti" id="confetti-wrap"></div>
+          <div class="completion-banner__inner">
+            <span class="completion-banner__icon">🎉</span>
+            <h2 class="completion-banner__title">Module B8 Complete!</h2>
+            <p class="completion-banner__subtitle">You have mastered the three testing decisions — sufficient evidence, SIT vs UAT scope, and the testing captain model. Module B9 is now unlocked.</p>
+            <div class="completion-banner__stats">
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-score">—</div><div class="completion-banner__stat-label">Quiz Score</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value">B8</div><div class="completion-banner__stat-label">Module</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-time">—</div><div class="completion-banner__stat-label">Time Spent</div></div>
+            </div>
+            <a href="b9.html" class="btn btn-primary btn--xl">Continue to B9 — AI in Controls →</a>
+          </div>
+        </div>
+
+      </div><!-- /lms-content -->
+
+      <footer class="module-nav-footer">
+        <div class="module-nav-footer__context">
+          <svg class="module-nav-footer__progress-ring ring-svg" viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="15.9"/><circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15.9"/></svg>
+          <div class="module-nav-footer__labels"><div class="module-nav-footer__module">Module B8 · Advanced</div><div class="module-nav-footer__title">Testing Phase</div></div>
+        </div>
+        <div class="module-nav-footer__actions">
+          <a href="b7.html" class="btn btn-ghost btn--sm">← B7</a>
+          <button class="btn btn-ghost btn--sm" id="mark-complete-btn" onclick="markComplete()">Mark Complete</button>
+          <a href="b9.html" class="btn btn-navy btn--sm">Next: B9 →</a>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const CLAUDE_API_KEY='sk-ant-api03-6S-zY5EX14Ity0O8rV9tk12lMdtk1QVBuc0RbxmLWssAqcE5avVmWPL3F_K-IMe8whHE9YdA-zxF7NFUuA2b-w-cM';
+const LS_COMPLETE_KEY='tib_module_b8_complete';
+const LS_ALL_CODES=['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'];
+const MODULE_START_MS=Date.now();
+
+// ── EVIDENCE SUFFICIENCY CHECKER ─────────────────────────
+let activeESC=null;
+function showVerdict(id){
+  ['a','b','c','d'].forEach(k=>{
+    document.getElementById(`esc-${k}`).classList.remove('active-suf','active-ins');
+    document.getElementById(`esc-verdict-${k}`).classList.remove('visible');
+  });
+  const btn=document.getElementById(`esc-${id}`);
+  const verdict=document.getElementById(`esc-verdict-${id}`);
+  const isSuf=verdict.classList.contains('esc-verdict--suf');
+  btn.classList.add(isSuf?'active-suf':'active-ins');
+  verdict.classList.add('visible');
+  activeESC=id;
+}
+function resetESC(){
+  ['a','b','c','d'].forEach(k=>{
+    document.getElementById(`esc-${k}`).classList.remove('active-suf','active-ins');
+    document.getElementById(`esc-verdict-${k}`).classList.remove('visible');
+  });
+  activeESC=null;
+}
+
+// ── DECISION ACCORDION ────────────────────────────────────
+function toggleDec(trigger){
+  const panel=trigger.nextElementSibling;
+  const isOpen=trigger.classList.contains('open');
+  document.querySelectorAll('.dec-trigger').forEach(t=>{t.classList.remove('open');t.nextElementSibling.classList.remove('open');});
+  if(!isOpen){trigger.classList.add('open');panel.classList.add('open');}
+}
+
+// ── QUIZ ─────────────────────────────────────────────────
+const QUIZ=[
+  {
+    q:'A controls practitioner is reviewing config evidence for the three-way match control on a major energy sector engagement. The evidence package contains: (1) a screenshot of the SPRO navigation path to the tolerance key, and (2) a screenshot of the OMR6 tolerance screen for company code GC01 showing 3% quantity and price variance. Is this evidence package sufficient?',
+    opts:[
+      {t:'Yes — the SPRO path and the tolerance value together constitute sufficient evidence for a configuration test.',c:false},
+      {t:'No — the company code cross-check is missing. All company codes must be reviewed, and any that deviate from the standard value must be investigated.',c:true},
+      {t:'No — a positive test scenario (invoice processed within tolerance) must also be included in the config evidence package.',c:false},
+      {t:'Yes — SPRO path and GC01 OMR6 settings are the required two components. No further evidence is needed.',c:false}
+    ],
+    exp:'Correct. The evidence package covers two of the three required components for config testing: the SPRO navigation path and the tolerance value. The third component — the company code cross-check — is missing. All relevant company codes must be reviewed. On the major energy sector engagement described in the source session, reviewing all company codes revealed one at 10% when all others were at 2–3%. That exception required a policy justification or a correction before go-live. A practitioner who checks only GC01 would miss this. Option A accepts two components as sufficient. Option C confuses transactional testing requirements with configuration testing requirements — these are separate test steps. Option D is incorrect — there are three required components, not two.'
+  },
+  {
+    q:'A test plan for the payment run SoD control contains the following test cases: (1) Authorised user executes F110 payment run — payment completes successfully. A controls practitioner reviews the plan before testing starts. What feedback should they give?',
+    opts:[
+      {t:'The test plan is complete — the authorised user test confirms the control is operating correctly.',c:false},
+      {t:'The test plan needs a negative scenario: an unauthorised user attempting to execute F110 should result in a system block. Without this, the test does not confirm the SoD restriction is functioning.',c:true},
+      {t:'The test plan should also include a report test — run the SoD conflict report and confirm it shows no conflicts for the authorised user.',c:false},
+      {t:'The test plan is sufficient if the authorised user successfully executes the payment run and the system log captures the execution.',c:false}
+    ],
+    exp:'Correct. This test plan contains only a positive scenario — an authorised user executing successfully. It does not prove that the SoD restriction blocks an unauthorised user. The negative scenario is required: attempt the F110 execution with a user who has SoD conflicts, and confirm the system blocks the transaction. A SoD control that only has a positive test result is not fully validated — you need both the "works correctly" evidence and the "blocks correctly" evidence. Option A accepts a positive-only test as complete. Option C introduces a report test as a substitute for the negative transactional scenario — these are different test types addressing different questions. Option D confuses successful execution logging with evidence of SoD restriction.'
+  },
+  {
+    q:'A controls team is scoping a 280-control portfolio across SIT and UAT for a PetroNova S.A. S/4HANA transformation. The following controls are under discussion:\n(A) Workflow configuration for purchase order approval thresholds\n(B) Daily PR interface monitoring report review by the P2P Process Lead\n(C) MIRO duplicate invoice block (automated system check)\n(D) Monthly vendor master change report review signed off by Finance Manager\n\nWhich controls should be scoped for UAT?',
+    opts:[
+      {t:'A and C — these are the highest-risk controls and UAT provides the most rigorous testing environment.',c:false},
+      {t:'All four — UAT is the final testing cycle and all controls should be validated with business users present.',c:false},
+      {t:'B and D — both require a human to generate a system report and take documented action, making UAT the appropriate testing environment.',c:true},
+      {t:'A and D — workflow controls always require business user testing in UAT to confirm the approval routing is correct.',c:false}
+    ],
+    exp:'Correct. The SIT vs UAT split is based on control nature, not risk rating. Controls B and D are both ITDM controls: the system generates a report (IT component) and a human reviews and signs off (human component). UAT is the appropriate environment because business users — the P2P Process Lead and Finance Manager — need to be in the system to demonstrate they can perform the review and sign-off steps. Controls A and C are automated/configuration controls: the system enforces the control automatically without human intervention. These belong in SIT. A is a workflow configuration test (confirm approval routing is set correctly); C is a duplicate invoice block (confirm the system-level check is operating). Option A applies a risk-based scoping logic — incorrect. Option B re-runs all controls in UAT — unnecessary and wasteful. Option D misclassifies workflow configuration testing as requiring UAT.'
+  },
+  {
+    q:'A controls team has just been told by the programme manager that testing begins in two weeks. The controls team has not yet met the testing team, the test cases have not been reviewed, and evidence requirements have not been communicated. What is the most important immediate action?',
+    opts:[
+      {t:'Begin executing controls tests independently, without waiting for the programme testing team, to ensure the testing phase stays on schedule.',c:false},
+      {t:'Escalate to the programme sponsor — a two-week lead time is insufficient and testing should be delayed until the controls team is ready.',c:false},
+      {t:'Immediately identify the testing captain(s), review the programme test cases, add controls requirements to the test scripts, and agree the evidence requirements before the first test is executed.',c:true},
+      {t:'Focus on completing the RACM updates first — the testing team cannot proceed until the RACM is fully finalised.',c:false}
+    ],
+    exp:'Correct. The source session is explicit on this point: the testing captain model and the integration of controls requirements into programme test cases must be set up before testing begins — not after. With two weeks until testing starts, the immediate priority is: (1) identify the testing captain(s), (2) review the programme test cases and map controls to them, (3) add controls testing requirements directly to the test scripts, (4) publish evidence requirements and agree them with the testing captain. Setting this up now prevents the most common testing phase problems: inconsistent evidence, re-test chasing, and evidence packages that arrive incomplete. Option A bypasses the programme structure entirely. Option B is an escalation response, not an action that resolves the setup gap. Option D creates a sequential dependency where none is required — RACM updates and testing integration can happen in parallel.'
+  }
+];
+
+let QS={idx:0,sel:null,answered:false,score:0};
+function renderQuestion(){
+  if(QS.idx>=QUIZ.length){showScoreScreen();return;}
+  const q=QUIZ[QS.idx];
+  document.getElementById('quiz-counter').textContent=`Q${QS.idx+1} of ${QUIZ.length}`;
+  document.getElementById('quiz-q-text').textContent=q.q;
+  const opts=document.getElementById('quiz-options');opts.innerHTML='';
+  ['A','B','C','D'].forEach((ltr,i)=>{
+    const btn=document.createElement('button');btn.className='quiz-option';
+    btn.innerHTML=`<div class="quiz-option__marker">${ltr}</div><div class="quiz-option__text">${q.opts[i].t}</div>`;
+    btn.addEventListener('click',()=>selectOpt(i));opts.appendChild(btn);
+  });
+  document.getElementById('quiz-feedback').className='quiz-feedback';
+  document.getElementById('quiz-check-btn').disabled=true;
+  document.getElementById('quiz-next-btn').classList.add('hidden');
+  document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx}`;
+  QS.sel=null;QS.answered=false;
+}
+function selectOpt(i){if(QS.answered)return;QS.sel=i;document.querySelectorAll('.quiz-option').forEach((b,j)=>b.classList.toggle('selected',j===i));document.getElementById('quiz-check-btn').disabled=false;}
+function checkAnswer(){if(QS.sel===null||QS.answered)return;QS.answered=true;const q=QUIZ[QS.idx];const correct=q.opts[QS.sel].c;if(correct)QS.score++;document.querySelectorAll('.quiz-option').forEach((btn,i)=>{btn.classList.add('disabled');if(q.opts[i].c)btn.classList.add('correct');else if(i===QS.sel&&!correct)btn.classList.add('incorrect');});const fb=document.getElementById('quiz-feedback');fb.className=`quiz-feedback visible quiz-feedback--${correct?'correct':'incorrect'}`;document.getElementById('quiz-fb-icon').textContent=correct?'✅':'❌';document.getElementById('quiz-fb-text').textContent=q.exp;document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.remove('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx+1}`;}
+function nextQuestion(){QS.idx++;if(QS.idx>=QUIZ.length)showScoreScreen();else renderQuestion();}
+function showScoreScreen(){const pct=Math.round((QS.score/QUIZ.length)*100);const msgs=[[75,'🌟 Excellent. You can manage the testing phase from evidence to coordination. Ready for B9.'],[50,'👍 Good work — passed. Review explanations on any questions you missed.'],[0,'📖 Not quite yet. Re-read the content sections and retake.']];const msg=msgs.find(m=>pct>=m[0]);document.getElementById('quiz-score-num').textContent=`${QS.score}/${QUIZ.length}`;document.getElementById('quiz-score-msg').textContent=msg[1];document.getElementById('quiz-question-wrap').classList.add('hidden');document.getElementById('quiz-score-screen').classList.remove('hidden');document.getElementById('quiz-footer').classList.add('hidden');document.getElementById('stat-score').textContent=`${pct}%`;if(pct>=50){document.getElementById('next-mod-btn').style.display='';setTimeout(()=>markComplete(pct),800);}}
+function restartQuiz(){QS={idx:0,sel:null,answered:false,score:0};document.getElementById('quiz-question-wrap').classList.remove('hidden');document.getElementById('quiz-score-screen').classList.add('hidden');document.getElementById('quiz-footer').classList.remove('hidden');renderQuestion();}
+
+function markComplete(score){localStorage.setItem(LS_COMPLETE_KEY,'true');(async function(){try{if(window.__sccSb&&window.__sccUserEmail){await window.__sccSb.from('sapexec_scc_progress').upsert({email:window.__sccUserEmail,module_id:'b8'},{onConflict:'email,module_id'});}}catch(e){console.warn('sapexec_scc_progress sync failed',e);}})();refreshSidebarProgress();const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);const mins=Math.max(1,Math.round((Date.now()-MODULE_START_MS)/60000));document.getElementById('stat-time').textContent=`${mins}m`;const banner=document.getElementById('completion-banner');if(banner){banner.classList.remove('hidden');setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'center'}),200);launchConfetti();}showToast('success','Module B8 Complete!','Testing Phase is marked complete. B9 is now unlocked.',4500);}
+function showAlreadyComplete(){const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);}
+function setProgress(pct){const bar=document.getElementById('mod-prog-bar');const txt=document.getElementById('mod-prog-pct');const ring=document.getElementById('ring-fill');if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=pct+'%';if(ring)ring.style.strokeDashoffset=100-pct;}
+function refreshSidebarProgress(){const done=LS_ALL_CODES.filter(c=>localStorage.getItem(`tib_module_${c.toLowerCase()}_complete`)==='true').length;const pct=Math.round((done/10)*100);const fill=document.getElementById('sidebar-prog-fill');const txt=document.getElementById('sidebar-prog-text');if(fill)fill.style.width=pct+'%';if(txt)txt.textContent=`${done} / 10 complete`;}
+const TAB_PROGRESS={content:25,concepts:55,quiz:80,tutor:92};
+function switchTab(btn,tabId){if(typeof btn==='string'){tabId=btn;btn=document.querySelector(`[data-tab="${tabId}"]`);}document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));if(btn)btn.classList.add('active');const panel=document.getElementById(`tab-${tabId}`);if(panel)panel.classList.add('active');if(localStorage.getItem(LS_COMPLETE_KEY)!=='true')setProgress(TAB_PROGRESS[tabId]||10);}
+document.getElementById('hamburger').addEventListener('click',()=>{const sb=document.getElementById('sidebar');const bd=document.getElementById('sidebar-backdrop');const open=sb.classList.toggle('open');bd.classList.toggle('active',open);});
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-backdrop').classList.remove('active');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+document.getElementById('main-scroll').addEventListener('scroll',function(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')return;const pct=Math.round((this.scrollTop/Math.max(1,this.scrollHeight-this.clientHeight))*100);setProgress(Math.min(pct,24));});
+function launchConfetti(){const wrap=document.getElementById('confetti-wrap');if(!wrap)return;wrap.innerHTML='';const cols=['1F7A8C','C65911','FFFFFF','5BB5C6','F0A070','1F3864','2AA860'];for(let i=0;i<60;i++){const el=document.createElement('div');el.className='confetti-piece';el.style.cssText=`left:${Math.random()*100}%;top:${-10-Math.random()*20}px;background:#${cols[Math.floor(Math.random()*cols.length)]};width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s;animation-delay:${Math.random()*0.8}s;`;wrap.appendChild(el);}}
+function showToast(type,title,msg,ms=4000){const icons={success:'✅',info:'ℹ️',warning:'⚠️',error:'❌'};const el=document.createElement('div');el.className=`toast toast--${type}`;el.innerHTML=`<div class="toast__icon">${icons[type]||'ℹ️'}</div><div><div class="toast__title">${title}</div><div class="toast__message">${msg}</div></div>`;document.getElementById('toasts').appendChild(el);setTimeout(()=>{el.style.cssText='opacity:0;transform:translateY(8px);transition:all 300ms ease;';setTimeout(()=>el.remove(),300);},ms);}
+
+const SYSTEM_PROMPT=`You are TIB AI Tutor — an expert SAP GRC and Internal Controls instructor for TIB Systems Inc.
+
+You are supporting Module B8: Testing Phase, from the SAP Controls & Compliance Training Programme.
+
+MODULE B8 CONTEXT:
+- Three testing decisions:
+
+DECISION 1 — SUFFICIENT EVIDENCE:
+  Config testing: THREE required components: (1) SPRO navigation path screenshot, (2) tolerance value(s) shown (e.g. 2% quantity and price variance), (3) company code cross-check — all company codes reviewed, exceptions documented. Missing any one component = insufficient.
+  War story: major energy sector engagement — SPRO + OMR6 showed 2% for most company codes. One showed 10% — flagged and investigated.
+  Transactional testing: BOTH positive scenario (compliant transaction processes correctly) AND negative scenario (non-compliant transaction is blocked + blocking reason code). Positive-only = insufficient.
+  ITDM testing: B3 two-element pattern — system report completeness/accuracy + human review sign-off + exception follow-up.
+
+DECISION 2 — SIT vs UAT SCOPE:
+  Rule: based on CONTROL NATURE, not risk rating.
+  SIT (System Integration Testing): automated/configuration controls — no human intervention required. System is being validated technically.
+  UAT (User Acceptance Testing): ITDM and manual controls — human review and action required. Business users demonstrate the human element.
+  Automated controls tested in SIT do NOT need re-running in UAT — configuration doesn't change.
+
+DECISION 3 — TESTING CAPTAIN COORDINATION:
+  Testing captain: single point of contact per tester group. Not necessarily senior — could be test coordinator from SI.
+  Without: chasing individual testers = thousands of emails, inconsistent evidence quality.
+  With: consolidated requests, consistent standards, one re-execution channel.
+  Integration before testing starts: (1) map controls to test cases, (2) add controls requirements to test scripts, (3) specify evidence requirements upfront, (4) define re-test mechanism. All done in Design and Build — pays back in Testing.
+
+TONE: Professional, clear, encouraging. 2-4 paragraphs. Quiz hints = conceptual nudge only. Can help apply the three decisions to specific testing scenarios.`;
+
+let chatHistory=[];
+async function sendChat(){const input=document.getElementById('chat-input');const sendBtn=document.getElementById('chat-send');const text=input.value.trim();if(!text)return;appendMsg('user',text);chatHistory.push({role:'user',content:text});input.value='';autoGrow(input);sendBtn.disabled=true;const typingId=appendTyping();try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:chatHistory})});if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}const data=await res.json();const reply=(data.content||[]).map(b=>b.type==='text'?b.text:'').join('');removeTyping(typingId);appendMsg('ai',reply);chatHistory.push({role:'assistant',content:reply});}catch(err){removeTyping(typingId);appendMsg('ai',`⚠️ Connection error: ${err.message}`);}finally{sendBtn.disabled=false;}}
+function appendMsg(role,text){const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className=`chat-message chat-message--${role}`;const initial=role==='ai'?'T':'U';const html=role==='ai'?text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code style="font-family:var(--font-mono);font-size:0.9em;background:var(--grey-100);padding:1px 5px;border-radius:3px;">$1</code>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>'):text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML=`<div class="chat-message__avatar">${initial}</div><div class="chat-message__bubble">${html}</div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;}
+function appendTyping(){const id=`typing-${Date.now()}`;const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className='chat-message chat-message--ai';el.id=id;el.innerHTML=`<div class="chat-message__avatar">T</div><div class="chat-message__bubble"><div class="chat-message__typing"><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div></div></div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;return id;}
+function removeTyping(id){const el=document.getElementById(id);if(el)el.remove();}
+function sendChip(btn){document.getElementById('chat-input').value=btn.textContent.trim();autoGrow(document.getElementById('chat-input'));sendChat();}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+
+(function boot(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')showAlreadyComplete();LS_ALL_CODES.forEach(c=>{const key=`tib_module_${c.toLowerCase()}_complete`;const item=document.querySelector(`[data-module="${c}"]`);if(item&&localStorage.getItem(key)==='true'){item.classList.add('complete');const icon=item.querySelector('.lms-nav-item__icon');if(icon)icon.textContent='✓';}});refreshSidebarProgress();renderQuestion();})();
+window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('tib_module_')){refreshSidebarProgress();if(e.key===LS_COMPLETE_KEY&&e.newValue==='true')showAlreadyComplete();}});
+</script>
+</body>
+</html>

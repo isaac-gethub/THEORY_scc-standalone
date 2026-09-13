@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="scc-auth-guard.js"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B4 — Why Controls Matter | SAP Controls &amp; Compliance | TIB Systems Inc.</title>
+  <link rel="stylesheet" href="design-system.css" />
+  <style>
+    .hamburger{display:none;flex-direction:column;gap:5px;background:transparent;border:none;cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);flex-shrink:0;}
+    .hamburger span{display:block;width:22px;height:2px;background:rgba(255,255,255,0.80);border-radius:2px;transition:all var(--transition-base);}
+    @media(max-width:900px){.hamburger{display:flex;}.lms-header__divider{display:none;}}
+    .sidebar-backdrop{display:none;position:fixed;inset:0;top:var(--header-height);background:var(--bg-overlay);z-index:calc(var(--z-overlay) - 1);}
+    .sidebar-backdrop.active{display:block;}
+    .module-body h2{font-family:var(--font-display);font-size:var(--scale-2xl);color:var(--text-primary);letter-spacing:var(--tracking-tight);line-height:var(--leading-tight);margin-bottom:var(--space-4);margin-top:var(--space-10);}
+    .module-body h2:first-child{margin-top:0;}
+    .module-body h3{font-size:var(--scale-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);margin-top:var(--space-6);}
+    .module-body p{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);max-width:68ch;}
+    .module-body strong{color:var(--text-primary);font-weight:600;}
+    .module-body em{font-style:italic;color:var(--teal);}
+
+    /* Career-path reference banner */
+    .career-banner{background:linear-gradient(135deg,var(--navy-deep) 0%,var(--navy) 100%);border:1px solid rgba(198,89,17,0.30);border-left:4px solid var(--amber);border-radius:var(--radius-xl);padding:var(--space-5);margin-bottom:var(--space-6);}
+    .career-banner__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--amber-light);margin-bottom:var(--space-3);}
+    .career-banner__title{font-size:var(--scale-base);font-weight:700;color:var(--white);margin-bottom:var(--space-2);}
+    .career-banner__desc{font-size:var(--scale-sm);color:rgba(255,255,255,0.55);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);}
+    .career-banner__roles{display:flex;flex-wrap:wrap;gap:var(--space-2);}
+    .career-role-pill{background:rgba(198,89,17,0.20);border:1px solid rgba(198,89,17,0.35);border-radius:var(--radius-pill);padding:3px 12px;font-size:var(--scale-xs);font-weight:600;color:var(--amber-light);}
+
+    /* Timeline: implementation → go-live → audit */
+    .timeline-flow{display:flex;align-items:stretch;gap:0;margin:var(--space-6) 0;overflow-x:auto;}
+    .timeline-flow::-webkit-scrollbar{height:4px;}
+    .timeline-flow::-webkit-scrollbar-thumb{background:var(--grey-200);}
+    .timeline-phase{flex:1;min-width:140px;background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-lg);padding:var(--space-4) var(--space-4) var(--space-3);box-shadow:var(--shadow-xs);text-align:center;}
+    .timeline-phase__icon{font-size:1.6rem;margin-bottom:var(--space-2);}
+    .timeline-phase__label{font-size:var(--scale-sm);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-1);}
+    .timeline-phase__sub{font-size:var(--scale-xs);color:var(--text-muted);}
+    .timeline-arrow{display:flex;align-items:center;padding:0 var(--space-2);color:var(--teal);font-size:1.2rem;flex-shrink:0;}
+
+    /* Without/With comparison */
+    .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5);margin:var(--space-5) 0 var(--space-8);}
+    .compare-card{border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .compare-card__header{padding:var(--space-3) var(--space-5);font-weight:700;font-size:var(--scale-sm);}
+    .compare-card__header--bad{background:var(--color-error-light);color:var(--color-error);}
+    .compare-card__header--good{background:var(--color-success-light);color:var(--color-success);}
+    .compare-card__body{background:var(--white);border:1px solid var(--grey-100);border-top:none;padding:var(--space-4) var(--space-5);}
+    .compare-card__item{display:flex;align-items:flex-start;gap:var(--space-2);font-size:var(--scale-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-3);}
+    .compare-card__item:last-child{margin-bottom:0;}
+    .compare-card__icon{flex-shrink:0;font-size:1rem;margin-top:1px;}
+
+    /* Value driver cards */
+    .vd-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-5);margin:var(--space-5) 0 var(--space-8);}
+    .vd-card{background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .vd-card__top{padding:var(--space-4) var(--space-5) var(--space-3);border-bottom:1px solid var(--grey-100);}
+    .vd-card__num{font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-1);}
+    .vd-card__title{font-size:var(--scale-md);font-weight:700;color:var(--text-primary);}
+    .vd-card__body{padding:var(--space-4) var(--space-5);}
+    .vd-card__desc{font-size:var(--scale-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-3);}
+    .vd-card__outcome{font-size:var(--scale-xs);font-weight:600;padding:4px 10px;border-radius:var(--radius-pill);display:inline-block;}
+
+    /* Practitioner frame callout */
+    .frame-callout{background:var(--navy);border:1px solid rgba(198,89,17,0.40);border-left:4px solid var(--amber);border-radius:var(--radius-xl);padding:var(--space-6);margin:var(--space-6) 0;}
+    .frame-callout__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--amber-light);margin-bottom:var(--space-3);}
+    .frame-callout__quote{font-family:var(--font-display);font-size:var(--scale-xl);font-style:italic;color:var(--white);line-height:var(--leading-snug);margin-bottom:var(--space-4);}
+    .frame-callout__body{font-size:var(--scale-sm);color:rgba(255,255,255,0.55);line-height:var(--leading-relaxed);}
+
+    .ring-svg{transform:rotate(-90deg);}
+    .ring-bg{fill:none;stroke:var(--grey-100);stroke-width:3;}
+    .ring-fill{fill:none;stroke:var(--teal);stroke-width:3;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 600ms ease;}
+    .confetti-piece{position:absolute;border-radius:2px;animation:confettiFall linear forwards;}
+
+    @media(max-width:900px){
+      .lms-sidebar{position:fixed;left:0;top:var(--header-height);bottom:0;z-index:var(--z-overlay);transform:translateX(-100%);transition:transform var(--transition-slow);}
+      .lms-sidebar.open{transform:translateX(0);box-shadow:var(--shadow-xl);}
+      .lms-content{padding:var(--space-6) var(--space-5) var(--space-16);}
+      .module-hero{padding:var(--space-8) var(--space-5);}
+      .compare-grid{grid-template-columns:1fr;}
+      .vd-grid{grid-template-columns:1fr;}
+    }
+    @media(max-width:600px){.module-nav-footer__context{display:none;}}
+  </style>
+</head>
+<body>
+<div class="lms-app" id="app">
+
+  <header class="lms-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    <a href="../index.html" class="lms-header__logo">
+      <div class="lms-header__logo-mark">T</div>
+      <div class="lms-header__brand"><span class="lms-header__brand-name">TIB Systems</span><span class="lms-header__brand-sub">Powered by TIB Systems Inc.</span></div>
+    </a>
+    <div class="lms-header__divider"></div>
+    <div class="lms-header__prog"><div class="lms-header__prog-name">SAP Controls &amp; Compliance Training Programme</div><div class="lms-header__prog-sub">10-Module Practitioner Path</div></div>
+    <div class="lms-header__actions">
+      <a href="../index.html" class="btn btn-ghost btn--sm" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.70);font-size:var(--scale-xs);">← All Modules</a>
+      <div class="badge badge--teal" id="header-status-badge">In Progress</div>
+    </div>
+  </header>
+
+  <div class="lms-body">
+    <aside class="lms-sidebar" id="sidebar">
+      <div class="lms-sidebar__section-label">Foundation</div>
+      <button class="lms-nav-item" data-module="B1" onclick="window.location.href='b1.html'"><div class="lms-nav-item__icon">B1</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Risk Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B2" onclick="window.location.href='b2.html'"><div class="lms-nav-item__icon">B2</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B3" onclick="window.location.href='b3.html'"><div class="lms-nav-item__icon">B3</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Nature</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item active" data-module="B4"><div class="lms-nav-item__icon">B4</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Why Controls Matter</div><div class="lms-nav-item__subtitle">Current module</div></div><div class="lms-nav-item__badge"></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Applied</div>
+      <button class="lms-nav-item" data-module="B5" onclick="window.location.href='b5.html'"><div class="lms-nav-item__icon">B5</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Engagement Types</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item" data-module="B6" onclick="window.location.href='b6.html'"><div class="lms-nav-item__icon">B6</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">S/4HANA Lifecycle</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item" data-module="B7" onclick="window.location.href='b7.html'"><div class="lms-nav-item__icon">B7</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Reading FD Documents</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Advanced</div>
+      <button class="lms-nav-item" data-module="B8" onclick="window.location.href='b8.html'"><div class="lms-nav-item__icon">B8</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Testing Phase</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <button class="lms-nav-item" data-module="B9" onclick="window.location.href='b9.html'"><div class="lms-nav-item__icon">B9</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">AI in Controls</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Capstone</div>
+      <button class="lms-nav-item" data-module="B10" onclick="window.location.href='b10.html'"><div class="lms-nav-item__icon">B10</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Practitioner Capstone</div><div class="lms-nav-item__subtitle">Capstone</div></div></button>
+      <div style="margin-top:auto;padding:var(--space-5);border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:var(--scale-2xs);color:rgba(255,255,255,0.30);letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-2);">Programme Progress</div>
+        <div class="progress-bar" style="height:5px;background:rgba(255,255,255,0.10);"><div class="progress-bar__fill" id="sidebar-prog-fill" style="width:0%;"></div></div>
+        <div style="font-family:var(--font-mono);font-size:var(--scale-2xs);color:rgba(255,255,255,0.35);margin-top:var(--space-2);" id="sidebar-prog-text">0 / 10 complete</div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+    <main class="lms-main" id="main-scroll">
+      <div class="module-progress-strip">
+        <span class="module-progress-strip__label">Module Progress</span>
+        <div class="module-progress-strip__bar"><div class="progress-bar"><div class="progress-bar__fill" id="mod-prog-bar" style="width:10%;"></div></div></div>
+        <span class="module-progress-strip__pct" id="mod-prog-pct">10%</span>
+      </div>
+
+      <div class="module-hero">
+        <div class="module-hero__inner">
+          <div class="module-hero__eyebrow"><span class="module-hero__code">B4</span><span class="module-hero__prog-label">SAP Controls &amp; Compliance Training Programme</span></div>
+          <h1 class="module-hero__title"><em>Why Controls Matter</em> — The Business Case</h1>
+          <p class="module-hero__desc">Learn to articulate the value of a controls workstream in language that resonates with a CFO, programme sponsor, or audit committee. Master the four value drivers and the external audit connection that make controls the most important investment in an SAP transformation.</p>
+          <div class="module-hero__meta">
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="module-hero__meta-text">10–12 min · 3 sections · Executive focus</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span class="module-hero__meta-text">4 value drivers · 5-question quiz · AI Tutor</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="module-hero__meta-text" id="hero-status">In progress</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lms-content">
+
+        <div class="learning-objectives animate-fade-in">
+          <div class="learning-objectives__header">
+            <div class="icon-circle icon-circle--md icon-circle--navy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <span class="learning-objectives__title">Learning Objectives</span>
+          </div>
+          <div class="learning-objectives__list">
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>articulate the business case</strong> for a controls workstream in language accessible to a CFO, programme sponsor, or audit committee — without relying on technical jargon.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>describe the four value drivers</strong> of a controls workstream and explain the specific business outcome each delivers.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>explain the external audit connection</strong> — how pre-go-live controls work directly reduces annual audit cost and improves controls effectiveness.</span></div>
+          </div>
+        </div>
+
+        <div class="tabs animate-fade-in">
+          <div class="tabs__nav" role="tablist">
+            <button class="tab-btn active" role="tab" data-tab="content"  onclick="switchTab(this,'content')">📖 Content</button>
+            <button class="tab-btn"        role="tab" data-tab="concepts" onclick="switchTab(this,'concepts')">🗂 Key Concepts</button>
+            <button class="tab-btn"        role="tab" data-tab="quiz"     onclick="switchTab(this,'quiz')">✏️ Knowledge Check</button>
+            <button class="tab-btn"        role="tab" data-tab="tutor"    onclick="switchTab(this,'tutor')">🤖 AI Tutor</button>
+          </div>
+
+          <!-- TAB: CONTENT -->
+          <div class="tab-panel active" id="tab-content">
+            <div class="module-body">
+
+              <!-- Career path reference banner -->
+              <div class="career-banner">
+                <div class="career-banner__label">📌 Career-Path Reference — Module B4</div>
+                <div class="career-banner__title">When You Will Use This</div>
+                <div class="career-banner__desc">The business case content in this module is used every time you brief a senior stakeholder — before an engagement starts, during a programme steering committee, or when justifying the controls workstream budget. It is the language that converts technical controls work into executive-level value.</div>
+                <div class="career-banner__roles">
+                  <span class="career-role-pill">Analyst — SteerCo prep</span>
+                  <span class="career-role-pill">Consultant — value framing</span>
+                  <span class="career-role-pill">Manager — programme justification</span>
+                  <span class="career-role-pill">Director — client advisory</span>
+                </div>
+              </div>
+
+              <h2 id="s1">Section 1 · The Cost of Getting Controls Wrong</h2>
+
+              <p>Imagine a client who has invested between six months and three years in an SAP S/4HANA transformation. At go-live, they expect the system to work and they expect to run their business with confidence the very next morning. Now consider what happens if controls are not embedded before go-live. A controls failure discovered post-live is not an abstract risk — it is <strong>rework, cost, and potential regulatory exposure</strong> at exactly the moment when an organisation is most vulnerable.</p>
+
+              <div class="callout callout--warning"><div class="callout__icon">⚠️</div><div class="callout__body"><div class="callout__title">What the Source Session Says</div><div class="callout__text">The transcript is direct: <em>"if they don't have their risks and controls right, there may be consequences — financial misstatements or loss, or they may have to end up redesigning their processes after go-live."</em> Three concrete consequences: misstatements, post-live rework, and the inability to unlock the new value that S/4HANA was intended to deliver.</div></div></div>
+
+              <h3 id="s1-day1">Compliant on Day One</h3>
+
+              <p>The source session identifies the primary objective precisely: clients should be <strong>compliant on day one of go-live</strong>. That phrase captures the essential value proposition. When you embed controls during implementation, you are not creating compliance overhead — you are eliminating a far more expensive problem: discovering control gaps after the system is live, after real transactions have been processed, after external auditors have begun their review.</p>
+
+              <!-- Implementation → Go-Live → Audit timeline -->
+              <div class="timeline-flow">
+                <div class="timeline-phase" style="border-color:var(--navy);"><div class="timeline-phase__icon">🔨</div><div class="timeline-phase__label">Implementation</div><div class="timeline-phase__sub">6 months – 3 years</div></div>
+                <div class="timeline-arrow">→</div>
+                <div class="timeline-phase" style="border-color:var(--teal);"><div class="timeline-phase__icon">🚀</div><div class="timeline-phase__label">Go-Live</div><div class="timeline-phase__sub" style="font-weight:700;color:var(--teal);">Controls must be ready</div></div>
+                <div class="timeline-arrow">→</div>
+                <div class="timeline-phase" style="border-color:var(--amber);"><div class="timeline-phase__icon">🔍</div><div class="timeline-phase__label">External Audit</div><div class="timeline-phase__sub">Post go-live</div></div>
+              </div>
+
+              <!-- Without / With comparison -->
+              <div class="compare-grid">
+                <div class="compare-card">
+                  <div class="compare-card__header compare-card__header--bad">❌ Without Controls at Go-Live</div>
+                  <div class="compare-card__body">
+                    <div class="compare-card__item"><div class="compare-card__icon">❌</div><div>Gaps discovered after real transactions have been processed — remediation at maximum cost</div></div>
+                    <div class="compare-card__item"><div class="compare-card__icon">❌</div><div>External auditor raises material weakness findings — reputational and regulatory exposure</div></div>
+                    <div class="compare-card__item"><div class="compare-card__icon">❌</div><div>Post-live process redesign costs multiples of implementation-phase design cost</div></div>
+                    <div class="compare-card__item"><div class="compare-card__icon">❌</div><div>S/4HANA investment fails to deliver intended ROI — lift-and-shift mentality persists</div></div>
+                  </div>
+                </div>
+                <div class="compare-card">
+                  <div class="compare-card__header compare-card__header--good">✅ With Controls Embedded at Go-Live</div>
+                  <div class="compare-card__body">
+                    <div class="compare-card__item"><div class="compare-card__icon">✅</div><div>Compliant on day one — no post-live remediation sprint; operations start cleanly</div></div>
+                    <div class="compare-card__item"><div class="compare-card__icon">✅</div><div>External audit reliance increases; annual testing cost falls; fewer findings</div></div>
+                    <div class="compare-card__item"><div class="compare-card__icon">✅</div><div>Controls designed right the first time — automation captured during implementation</div></div>
+                    <div class="compare-card__item"><div class="compare-card__icon">✅</div><div>S/4HANA value realised — new capabilities unlocked, not just old process replicated</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Section 2</div><div class="section-divider__line"></div></div>
+
+              <h2 id="s2">Section 2 · Four Value Drivers</h2>
+
+              <p>The source session identifies four value drivers that justify a controls workstream in an S/4HANA transformation programme. These are the arguments that land with a programme sponsor, a CFO, or an audit committee — because they are framed in business outcomes, not in controls taxonomy.</p>
+
+              <div class="vd-grid">
+                <div class="vd-card">
+                  <div class="vd-card__top"><div class="vd-card__num" style="color:var(--teal);">Value Driver 01</div><div class="vd-card__title">Issues Prevented from Go-Live</div></div>
+                  <div class="vd-card__body"><div class="vd-card__desc">The preventive measure — every financial, operational, and regulatory risk identified before go-live is a risk that cannot manifest as a live-system failure. Every SoD conflict resolved during design is a conflict that cannot generate a payment fraud or a material weakness finding in the live system.</div><span class="vd-card__outcome" style="background:var(--teal-faint);color:var(--teal-deep);">Outcome: Fewer post-live findings</span></div>
+                </div>
+                <div class="vd-card">
+                  <div class="vd-card__top"><div class="vd-card__num" style="color:var(--navy);">Value Driver 02</div><div class="vd-card__title">Designing the Process Right the First Time</div></div>
+                  <div class="vd-card__body"><div class="vd-card__desc">Counter the lift-and-shift instinct. The source session is direct: <em>"that is not the mindset we should be going with."</em> The moment of transformation is the cheapest possible time to redesign a process — far cheaper than redesigning it post-live. Build compliance in, not on.</div><span class="vd-card__outcome" style="background:var(--navy-faint);color:var(--navy);">Outcome: No re-engineering post-live</span></div>
+                </div>
+                <div class="vd-card">
+                  <div class="vd-card__top"><div class="vd-card__num" style="color:var(--color-success);">Value Driver 03</div><div class="vd-card__title">Reduced Cost of Compliance</div></div>
+                  <div class="vd-card__body"><div class="vd-card__desc">Controls designed, documented, and tested from day one require less auditor testing time than controls hastily assembled to address findings. Higher audit reliance means smaller sample sizes, lower external audit fees, and fewer audit hours consumed each year over the life of the programme.</div><span class="vd-card__outcome" style="background:var(--color-success-light);color:var(--color-success);">Outcome: Lower annual audit cost</span></div>
+                </div>
+                <div class="vd-card">
+                  <div class="vd-card__top"><div class="vd-card__num" style="color:var(--amber);">Value Driver 04</div><div class="vd-card__title">Integration and Efficiency</div></div>
+                  <div class="vd-card__body"><div class="vd-card__desc">Controls fully embedded and operationalised in the client's environment — not delivered as a document set and left. The goal is controls the business owns, automates where possible, and can continuously improve over time. A controls workstream that leaves behind sustainable processes delivers value long after the engagement closes.</div><span class="vd-card__outcome" style="background:var(--amber-faint);color:var(--amber-deep);">Outcome: Sustainable controls maturity</span></div>
+                </div>
+              </div>
+
+              <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Section 3</div><div class="section-divider__line"></div></div>
+
+              <h2 id="s3">Section 3 · The External Audit Connection</h2>
+
+              <p>The source session makes the external audit connection explicit: <em>controls are the inputs for external auditors to conduct their annual audit.</em> When control gaps surface during pre-go-live, the programme team can detect them, fix them, and address them so that once the actual audit starts, the client faces less cost and governs their controls framework more effectively.</p>
+
+              <div class="callout callout--navy"><div class="callout__icon">🔍</div><div class="callout__body"><div class="callout__title">The Direct Line to Audit Cost</div><div class="callout__text">A control that is designed, documented, tested, and operating from go-live requires far less auditor testing than a control assembled post-finding. The difference is not marginal — it compounds over multiple audit cycles. The controls workstream is, in effect, reducing the client's external audit cost every year for the life of the S/4HANA system.</div></div></div>
+
+              <!-- Practitioner frame callout -->
+              <div class="frame-callout">
+                <div class="frame-callout__label">🎯 The Practitioner's Frame</div>
+                <div class="frame-callout__quote">"Value Protection, Not Compliance Overhead"</div>
+                <div class="frame-callout__body">When you enter a client engagement, you are not there to build documents and run reports. You are there to protect the client's investment in their transformation. Every risk you identify, every control you design, every test you execute contributes to the four value drivers. That framing — value protection, not compliance overhead — is how you speak to senior stakeholders, and it is the language that unlocks the access and the buy-in you need to do the work effectively.</div>
+              </div>
+
+              <div class="callout callout--success"><div class="callout__icon">✅</div><div class="callout__body"><div class="callout__title">All Three Sections Complete</div><div class="callout__text">You have reviewed all content for Module B4. Proceed to <strong>Key Concepts</strong> for a structured recall review, or go directly to the <strong>Knowledge Check</strong>. A passing score of 60% or above marks this module complete and unlocks Module B5.</div></div></div>
+
+            </div>
+          </div><!-- /tab-content -->
+
+          <!-- TAB: KEY CONCEPTS -->
+          <div class="tab-panel" id="tab-concepts">
+
+            <!-- Career path reference in concepts tab too -->
+            <div class="career-banner" style="margin-bottom:var(--space-6);">
+              <div class="career-banner__label">📌 Career-Path Reference — How This Content Scales</div>
+              <div class="career-banner__title">From Analyst to Director</div>
+              <div class="career-banner__desc">At every level, the four value drivers remain relevant — but the depth and the audience change. Analysts use this content to prep SteerCo briefings. Consultants use it to frame their work during client workshops. Managers use it to justify programme scope. Directors use it as the opening frame for every client advisory engagement.</div>
+              <div class="career-banner__roles">
+                <span class="career-role-pill">Analyst — prep SteerCo decks</span>
+                <span class="career-role-pill">Consultant — workshop framing</span>
+                <span class="career-role-pill">Manager — scope justification</span>
+                <span class="career-role-pill">Director — C-suite advisory</span>
+              </div>
+            </div>
+
+            <div style="font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-4);">The Four Value Drivers</div>
+            <div class="grid-2" style="margin-bottom:var(--space-6);">
+              <div class="concept-card"><div class="concept-card__accent"></div><div class="concept-card__body"><div class="concept-card__label">Driver 01</div><div class="concept-card__title">Issues Prevented from Go-Live</div><div class="concept-card__body-text">Every risk identified and mitigated during implementation is a risk that cannot materialise post-live. The preventive framing — not risk management after the fact.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--navy"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--navy">Driver 02</div><div class="concept-card__title">Designing the Process Right the First Time</div><div class="concept-card__body-text">Counter lift-and-shift. Build compliance in during design — not bolted on post-live. Transformation is the cheapest time to redesign.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent" style="background:var(--color-success);"></div><div class="concept-card__body"><div class="concept-card__label" style="color:var(--color-success);">Driver 03</div><div class="concept-card__title">Reduced Cost of Compliance</div><div class="concept-card__body-text">Higher audit reliance → smaller sample sizes → lower external audit fees. Controls embedded from day one cost less to maintain and test annually.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--amber"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--amber">Driver 04</div><div class="concept-card__title">Integration and Efficiency</div><div class="concept-card__body-text">Controls embedded in operations — automated where possible, owned by the business, capable of continuous improvement. Not delivered and left.</div></div></div>
+            </div>
+
+            <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Key Definitions</div><div class="section-divider__line"></div></div>
+
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Compliant on Day One</span></div><div class="key-term__definition">The primary value objective of a controls workstream in an S/4HANA transformation. At the point of go-live, the client's risk and controls framework is fully designed, validated, and tested — so the organisation can begin operations in a compliant state without a post-live remediation sprint. Prevention during implementation costs a fraction of remediation after go-live.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Lift-and-Shift</span></div><div class="key-term__definition">The tendency to carry the old process directly into the new system without redesign. The source session identifies this as "not the mindset we should be going with." S/4HANA transformation is the optimal moment to redesign processes for compliance, automation, and efficiency — that opportunity closes at go-live. A controls workstream explicitly challenges lift-and-shift thinking.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Value Protection</span></div><div class="key-term__definition">The practitioner's framing for the controls workstream: not compliance overhead, but protection of the client's investment in their transformation. Every control designed and tested before go-live protects the ROI of the S/4HANA investment by reducing post-live rework, lowering audit cost, and enabling sustainable operations from day one.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Consequence</span><span class="key-term__word">Financial Misstatements or Loss</span></div><div class="key-term__definition">When control gaps are not identified pre-live, errors and fraud can occur in the production system before they are detected. This can result in financial statements that do not accurately reflect the organisation's position — a SOX material weakness, an external audit finding, and potentially a restatement.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Consequence</span><span class="key-term__word">Post-Live Process Redesign</span></div><div class="key-term__definition">The most expensive consequence of missing controls at go-live. Redesigning a process after the system is live requires system changes, re-testing, business disruption, and often significant consulting expenditure — far exceeding the cost of getting the design right during implementation. The controls workstream prevents this.</div></div>
+          </div><!-- /tab-concepts -->
+
+          <!-- TAB: QUIZ -->
+          <div class="tab-panel" id="tab-quiz">
+            <div class="quiz-block">
+              <div class="quiz-block__header"><div class="quiz-block__icon">✏️</div><div class="quiz-block__title">Knowledge Check — B4 Why Controls Matter</div><div class="quiz-block__counter" id="quiz-counter">Q1 of 5</div></div>
+              <div class="quiz-block__body" id="quiz-body">
+                <div id="quiz-question-wrap">
+                  <div class="quiz-question" id="quiz-q-text">Loading…</div>
+                  <div class="quiz-options" id="quiz-options"></div>
+                  <div class="quiz-feedback" id="quiz-feedback"><div class="quiz-feedback__icon" id="quiz-fb-icon"></div><div class="quiz-feedback__text" id="quiz-fb-text"></div></div>
+                </div>
+                <div class="quiz-score-display hidden" id="quiz-score-screen">
+                  <div class="quiz-score-display__number" id="quiz-score-num">—</div>
+                  <div class="quiz-score-display__label">Your Score</div>
+                  <div style="margin-top:var(--space-4);font-size:var(--scale-sm);color:var(--text-secondary);max-width:40ch;margin-left:auto;margin-right:auto;" id="quiz-score-msg"></div>
+                  <div style="margin-top:var(--space-8);display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="restartQuiz()">Retake Quiz</button>
+                    <button class="btn btn-primary" onclick="switchTab(document.querySelector('[data-tab=tutor]'),'tutor')">Ask AI Tutor</button>
+                    <button class="btn btn-navy" id="next-mod-btn" onclick="window.location.href='b5.html'" style="display:none;">Next: B5 →</button>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-block__footer" id="quiz-footer">
+                <div style="font-size:var(--scale-xs);color:var(--text-muted);"><span id="quiz-score-track">Score: 0 / 0</span></div>
+                <div style="display:flex;gap:var(--space-3);">
+                  <button class="btn btn-ghost btn--sm" id="quiz-check-btn" onclick="checkAnswer()" disabled>Check Answer</button>
+                  <button class="btn btn-primary btn--sm hidden" id="quiz-next-btn" onclick="nextQuestion()">Next →</button>
+                </div>
+              </div>
+            </div>
+          </div><!-- /tab-quiz -->
+
+          <!-- TAB: AI TUTOR -->
+          <div class="tab-panel" id="tab-tutor">
+            <div class="ai-tutor">
+              <div class="ai-tutor__header">
+                <div class="ai-tutor__avatar">🤖</div>
+                <div class="ai-tutor__info"><div class="ai-tutor__name">TIB AI Tutor</div><div class="ai-tutor__status"><div class="ai-tutor__status-dot"></div>Ready — Module B4 context loaded</div></div>
+                <div class="ai-tutor__badge">Powered by Claude</div>
+              </div>
+              <div class="ai-tutor__messages" id="chat-messages">
+                <div class="chat-message chat-message--ai"><div class="chat-message__avatar">T</div><div class="chat-message__bubble">👋 Welcome to Module B4 — <strong>Why Controls Matter</strong>.<br><br>I have full context on this module: the four value drivers, the compliant-on-day-one framing, the external audit connection, and the practitioner's "value protection" reframe. I can also help you translate any of these concepts into language for specific senior stakeholder conversations — just describe the scenario.</div></div>
+              </div>
+              <div class="ai-tutor__prompt-row">
+                <button class="prompt-chip" onclick="sendChip(this)">What are the four value drivers?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">How do I explain this to a CFO?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What is lift-and-shift and why is it a problem?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">How does controls work reduce audit cost?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What does "compliant on day one" mean?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Value protection vs compliance overhead</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Give me a quiz hint</button>
+              </div>
+              <div class="ai-tutor__input-row">
+                <textarea class="ai-tutor__textarea" id="chat-input" placeholder="Ask anything about Module B4 — Why Controls Matter…" rows="1" onkeydown="handleChatKey(event)" oninput="autoGrow(this)"></textarea>
+                <button class="ai-tutor__send" id="chat-send" onclick="sendChat()" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+              </div>
+            </div>
+          </div><!-- /tab-tutor -->
+
+        </div><!-- /tabs -->
+
+        <div class="completion-banner hidden" id="completion-banner">
+          <div class="completion-banner__confetti" id="confetti-wrap"></div>
+          <div class="completion-banner__inner">
+            <span class="completion-banner__icon">🎉</span>
+            <h2 class="completion-banner__title">Module B4 Complete!</h2>
+            <p class="completion-banner__subtitle">You have mastered the business case for controls — the four value drivers, compliant on day one, and the value protection frame. Module B5 is now unlocked.</p>
+            <div class="completion-banner__stats">
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-score">—</div><div class="completion-banner__stat-label">Quiz Score</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value">B4</div><div class="completion-banner__stat-label">Module</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-time">—</div><div class="completion-banner__stat-label">Time Spent</div></div>
+            </div>
+            <a href="b5.html" class="btn btn-primary btn--xl">Continue to B5 — Engagement Types →</a>
+          </div>
+        </div>
+
+      </div><!-- /lms-content -->
+
+      <footer class="module-nav-footer">
+        <div class="module-nav-footer__context">
+          <svg class="module-nav-footer__progress-ring ring-svg" viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="15.9"/><circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15.9"/></svg>
+          <div class="module-nav-footer__labels"><div class="module-nav-footer__module">Module B4 · Foundation</div><div class="module-nav-footer__title">Why Controls Matter</div></div>
+        </div>
+        <div class="module-nav-footer__actions">
+          <a href="b3.html" class="btn btn-ghost btn--sm">← B3</a>
+          <button class="btn btn-ghost btn--sm" id="mark-complete-btn" onclick="markComplete()">Mark Complete</button>
+          <a href="b5.html" class="btn btn-navy btn--sm">Next: B5 →</a>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const CLAUDE_API_KEY='sk-ant-api03-6S-zY5EX14Ity0O8rV9tk12lMdtk1QVBuc0RbxmLWssAqcE5avVmWPL3F_K-IMe8whHE9YdA-zxF7NFUuA2b-w-cM';
+const LS_COMPLETE_KEY='tib_module_b4_complete';
+const LS_ALL_CODES=['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'];
+const MODULE_START_MS=Date.now();
+
+const QUIZ=[
+  {
+    q:"A programme sponsor asks you: 'Why should we spend budget on a controls workstream during implementation rather than fixing any issues after go-live?' Which answer best represents the business case from Module B4?",
+    opts:[
+      {t:"Post-live remediation is technically complex and requires specialist SAP skills that are expensive to source on short notice.",c:false},
+      {t:"Prevention during implementation costs a fraction of remediation post-live — every control gap fixed before go-live avoids rework, audit findings, and business disruption at the most vulnerable moment.",c:true},
+      {t:"Regulatory requirements mandate that controls must be in place before an SAP go-live; there is no legal option to fix them afterwards.",c:false},
+      {t:"Controls cannot be retrofitted into SAP after go-live due to technical constraints in the S/4HANA architecture.",c:false}
+    ],
+    exp:"Correct. This is the core business case from Module B4. The value of a controls workstream is primarily economic and operational: prevention during implementation is far cheaper than remediation post-live. The comparison is rework cost, audit finding cost, and business disruption cost — all avoidable if controls are embedded before go-live. Option A is a secondary practical point, not the primary business case. Option C overstates the regulatory requirement. Option D is factually incorrect."
+  },
+  {
+    q:"The source session describes 'lift-and-shift' as a mindset the controls workstream must challenge. What does lift-and-shift mean in the context of an S/4HANA transformation, and why is it a problem?",
+    opts:[
+      {t:"Physically moving on-premise SAP hardware to a cloud environment — a problem because cloud controls differ from on-premise controls.",c:false},
+      {t:"Migrating data from the legacy system to S/4HANA without data cleansing — a problem because dirty data undermines control effectiveness.",c:false},
+      {t:"Carrying the old process design directly into the new system without redesign — a problem because it misses the opportunity to build compliance and automation into the future state.",c:true},
+      {t:"Transferring documentation from the old system to the new one without updating it — a problem because outdated documentation creates audit risk.",c:false}
+    ],
+    exp:"Correct. Lift-and-shift in the context of an S/4HANA transformation means replicating the legacy process in the new system rather than taking the opportunity to redesign it. The source session is direct: that is not the mindset we should be going with. Transformation is the optimal moment to embed compliance, configure automated controls, and eliminate manual processes. After go-live, that window closes — redesign costs multiples more."
+  },
+  {
+    q:"A client CFO asks: 'How will the controls workstream affect our external audit cost next year?' Which response from Module B4 is most accurate?",
+    opts:[
+      {t:"Controls work happens inside the programme — external auditors conduct their own independent testing and the two processes do not interact.",c:false},
+      {t:"Controls are the inputs for the external audit. Controls designed, documented, and tested from go-live attract higher auditor reliance, require smaller sample sizes, and reduce annual external audit fees.",c:true},
+      {t:"The controls workstream cannot guarantee any reduction in external audit cost — that depends on the auditor's methodology, not the controls framework.",c:false},
+      {t:"External audit cost is driven by the number of entities in scope, not by control quality, so controls work has no direct impact on audit fees.",c:false}
+    ],
+    exp:"Correct. The source session makes this connection explicit: controls are the inputs for external auditors to conduct their annual audit. When controls are designed, evidenced, and operating from day one, auditors can place higher reliance on them — which translates directly into smaller testing samples, fewer audit hours, and lower fees. Option A is incorrect — external audit is directly dependent on the internal controls framework. Option C and D are inaccurate representations of audit methodology."
+  },
+  {
+    q:"Value Driver 4 — Integration and Efficiency — describes what a controls workstream should leave behind when the engagement closes. Which outcome best represents this value driver?",
+    opts:[
+      {t:"A comprehensive controls documentation library that the client's Internal Audit team can use for annual testing.",c:false},
+      {t:"Controls that are fully embedded in day-to-day operations, owned by the business, automated where possible, and capable of continuous improvement — not just a document set.",c:true},
+      {t:"A set of automated SoD rules in SAP GRC Access Control that will continue to flag conflicts without any manual intervention.",c:false},
+      {t:"Integration of the controls workstream outputs into the programme's project management reporting for ongoing tracking.",c:false}
+    ],
+    exp:"Correct. Value Driver 4 is about operational sustainability. The source session frames it as: making sure these controls are fully embedded and operationalised in the client's environment so that they can continue to carry this forward and continuously improve. Option A describes a useful artefact but not operational embedding. Option C describes one specific control type (automated SoD), not the broader embedding concept. Option D describes project reporting, not operational controls maturity."
+  },
+  {
+    q:"The Module B4 practitioner's frame is 'Value Protection, Not Compliance Overhead.' In a client conversation, a business process owner pushes back: 'This controls work is slowing down our design workshops and creating extra burden for the team.' How should the practitioner respond using this frame?",
+    opts:[
+      {t:"Acknowledge the concern and offer to reduce the controls scope to minimise the burden on the design team.",c:false},
+      {t:"Explain that compliance is a regulatory requirement and the work cannot be reduced regardless of the burden it creates.",c:false},
+      {t:"Reframe: the controls activity during design workshops is protecting the team's investment — every issue identified now eliminates a more expensive problem post-live, including rework, audit findings, and potential financial loss.",c:true},
+      {t:"Escalate the pushback to the programme manager to resolve the scheduling conflict before the next workshop.",c:false}
+    ],
+    exp:"Correct. The 'value protection' frame is a reframe — it repositions the controls conversation from compliance overhead to investment protection. The correct response is to acknowledge the concern while reframing the activity's purpose: the time spent now eliminates post-live rework and audit exposure that would cost far more. Option A surrenders on scope without a business case response. Option B is a compliance mandate argument — technically correct but not persuasive and not the frame Module B4 teaches. Option D is an escalation, not a stakeholder response."
+  }
+];
+
+let QS={idx:0,sel:null,answered:false,score:0};
+function renderQuestion(){if(QS.idx>=QUIZ.length){showScoreScreen();return;}const q=QUIZ[QS.idx];document.getElementById('quiz-counter').textContent=`Q${QS.idx+1} of ${QUIZ.length}`;document.getElementById('quiz-q-text').textContent=q.q;const opts=document.getElementById('quiz-options');opts.innerHTML='';['A','B','C','D'].forEach((ltr,i)=>{const btn=document.createElement('button');btn.className='quiz-option';btn.innerHTML=`<div class="quiz-option__marker">${ltr}</div><div class="quiz-option__text">${q.opts[i].t}</div>`;btn.addEventListener('click',()=>selectOpt(i));opts.appendChild(btn);});document.getElementById('quiz-feedback').className='quiz-feedback';document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.add('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx}`;QS.sel=null;QS.answered=false;}
+function selectOpt(i){if(QS.answered)return;QS.sel=i;document.querySelectorAll('.quiz-option').forEach((b,j)=>b.classList.toggle('selected',j===i));document.getElementById('quiz-check-btn').disabled=false;}
+function checkAnswer(){if(QS.sel===null||QS.answered)return;QS.answered=true;const q=QUIZ[QS.idx];const correct=q.opts[QS.sel].c;if(correct)QS.score++;document.querySelectorAll('.quiz-option').forEach((btn,i)=>{btn.classList.add('disabled');if(q.opts[i].c)btn.classList.add('correct');else if(i===QS.sel&&!correct)btn.classList.add('incorrect');});const fb=document.getElementById('quiz-feedback');fb.className=`quiz-feedback visible quiz-feedback--${correct?'correct':'incorrect'}`;document.getElementById('quiz-fb-icon').textContent=correct?'✅':'❌';document.getElementById('quiz-fb-text').textContent=q.exp;document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.remove('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx+1}`;}
+function nextQuestion(){QS.idx++;if(QS.idx>=QUIZ.length)showScoreScreen();else renderQuestion();}
+function showScoreScreen(){const pct=Math.round((QS.score/QUIZ.length)*100);const msgs=[[80,'🌟 Excellent. You can make the business case for controls at any seniority level. Ready for B5.'],[60,'👍 Good work — you passed. Review the explanations on any questions you missed.'],[0,'📖 Not quite yet. Re-read the content sections and retake — you have got this.']];const msg=msgs.find(m=>pct>=m[0]);document.getElementById('quiz-score-num').textContent=`${QS.score}/${QUIZ.length}`;document.getElementById('quiz-score-msg').textContent=msg[1];document.getElementById('quiz-question-wrap').classList.add('hidden');document.getElementById('quiz-score-screen').classList.remove('hidden');document.getElementById('quiz-footer').classList.add('hidden');document.getElementById('stat-score').textContent=`${pct}%`;if(pct>=60){document.getElementById('next-mod-btn').style.display='';setTimeout(()=>markComplete(pct),800);}}
+function restartQuiz(){QS={idx:0,sel:null,answered:false,score:0};document.getElementById('quiz-question-wrap').classList.remove('hidden');document.getElementById('quiz-score-screen').classList.add('hidden');document.getElementById('quiz-footer').classList.remove('hidden');renderQuestion();}
+
+function markComplete(score){localStorage.setItem(LS_COMPLETE_KEY,'true');(async function(){try{if(window.__sccSb&&window.__sccUserEmail){await window.__sccSb.from('sapexec_scc_progress').upsert({email:window.__sccUserEmail,module_id:'b4'},{onConflict:'email,module_id'});}}catch(e){console.warn('sapexec_scc_progress sync failed',e);}})();refreshSidebarProgress();const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);const mins=Math.max(1,Math.round((Date.now()-MODULE_START_MS)/60000));document.getElementById('stat-time').textContent=`${mins}m`;const banner=document.getElementById('completion-banner');if(banner){banner.classList.remove('hidden');setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'center'}),200);launchConfetti();}showToast('success','Module B4 Complete!','Why Controls Matter is marked complete. B5 is now unlocked.',4500);}
+function showAlreadyComplete(){const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);}
+function setProgress(pct){const bar=document.getElementById('mod-prog-bar');const txt=document.getElementById('mod-prog-pct');const ring=document.getElementById('ring-fill');if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=pct+'%';if(ring)ring.style.strokeDashoffset=100-pct;}
+function refreshSidebarProgress(){const done=LS_ALL_CODES.filter(c=>localStorage.getItem(`tib_module_${c.toLowerCase()}_complete`)==='true').length;const pct=Math.round((done/10)*100);const fill=document.getElementById('sidebar-prog-fill');const txt=document.getElementById('sidebar-prog-text');if(fill)fill.style.width=pct+'%';if(txt)txt.textContent=`${done} / 10 complete`;}
+const TAB_PROGRESS={content:25,concepts:55,quiz:80,tutor:92};
+function switchTab(btn,tabId){if(typeof btn==='string'){tabId=btn;btn=document.querySelector(`[data-tab="${tabId}"]`);}document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));if(btn)btn.classList.add('active');const panel=document.getElementById(`tab-${tabId}`);if(panel)panel.classList.add('active');if(localStorage.getItem(LS_COMPLETE_KEY)!=='true')setProgress(TAB_PROGRESS[tabId]||10);}
+document.getElementById('hamburger').addEventListener('click',()=>{const sb=document.getElementById('sidebar');const bd=document.getElementById('sidebar-backdrop');const open=sb.classList.toggle('open');bd.classList.toggle('active',open);});
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-backdrop').classList.remove('active');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+document.getElementById('main-scroll').addEventListener('scroll',function(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')return;const pct=Math.round((this.scrollTop/Math.max(1,this.scrollHeight-this.clientHeight))*100);setProgress(Math.min(pct,24));});
+function launchConfetti(){const wrap=document.getElementById('confetti-wrap');if(!wrap)return;wrap.innerHTML='';const cols=['1F7A8C','C65911','FFFFFF','5BB5C6','F0A070','1F3864','2AA860'];for(let i=0;i<60;i++){const el=document.createElement('div');el.className='confetti-piece';el.style.cssText=`left:${Math.random()*100}%;top:${-10-Math.random()*20}px;background:#${cols[Math.floor(Math.random()*cols.length)]};width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s;animation-delay:${Math.random()*0.8}s;`;wrap.appendChild(el);}}
+function showToast(type,title,msg,ms=4000){const icons={success:'✅',info:'ℹ️',warning:'⚠️',error:'❌'};const el=document.createElement('div');el.className=`toast toast--${type}`;el.innerHTML=`<div class="toast__icon">${icons[type]||'ℹ️'}</div><div><div class="toast__title">${title}</div><div class="toast__message">${msg}</div></div>`;document.getElementById('toasts').appendChild(el);setTimeout(()=>{el.style.cssText='opacity:0;transform:translateY(8px);transition:all 300ms ease;';setTimeout(()=>el.remove(),300);},ms);}
+
+const SYSTEM_PROMPT=`You are TIB AI Tutor — an expert SAP GRC and Internal Controls instructor for TIB Systems Inc.
+
+You are supporting Module B4: Why Controls Matter, from the SAP Controls & Compliance Training Programme.
+
+MODULE B4 CONTEXT:
+- Primary value objective: "Compliant on Day One" — controls embedded before go-live at a fraction of the post-live remediation cost
+- Lift-and-shift problem: carrying old process into new system without redesign; transformation is the cheapest time to build compliance in
+- Four value drivers:
+  1. Issues prevented from go-live — every risk identified pre-live cannot become a live-system failure
+  2. Designing the process right the first time — counter lift-and-shift; post-live redesign costs multiples more
+  3. Reduced cost of compliance — higher audit reliance → smaller samples → lower external audit fees annually
+  4. Integration and efficiency — controls embedded in operations, owned by business, automated where possible
+- External audit connection: controls are the inputs for the external audit. Pre-live controls = higher reliance = lower annual cost
+- Three consequences of missing controls at go-live: (1) financial misstatements or loss, (2) post-live process redesign, (3) inability to realise S/4HANA ROI / missed lift-and-shift escape
+- Practitioner's frame: "Value Protection, Not Compliance Overhead" — reframe every senior stakeholder conversation in these terms
+- Audience note: B4 is executive-facing. No SAP transaction codes. Language accessible to CFO, programme sponsor, audit committee.
+
+CAREER PATH CONTEXT: This content is used at every seniority level — analysts prepping SteerCo decks, consultants framing workshops, managers justifying scope, directors in C-suite advisory conversations.
+
+TONE: Professional, clear, outcome-focused. 2-4 paragraphs. Quiz hints = conceptual nudge only. Can help frame answers for specific stakeholder scenarios if asked.`;
+
+let chatHistory=[];
+async function sendChat(){const input=document.getElementById('chat-input');const sendBtn=document.getElementById('chat-send');const text=input.value.trim();if(!text)return;appendMsg('user',text);chatHistory.push({role:'user',content:text});input.value='';autoGrow(input);sendBtn.disabled=true;const typingId=appendTyping();try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:chatHistory})});if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}const data=await res.json();const reply=(data.content||[]).map(b=>b.type==='text'?b.text:'').join('');removeTyping(typingId);appendMsg('ai',reply);chatHistory.push({role:'assistant',content:reply});}catch(err){removeTyping(typingId);appendMsg('ai',`⚠️ Connection error: ${err.message}`);}finally{sendBtn.disabled=false;}}
+function appendMsg(role,text){const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className=`chat-message chat-message--${role}`;const initial=role==='ai'?'T':'U';const html=role==='ai'?text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code style="font-family:var(--font-mono);font-size:0.9em;background:var(--grey-100);padding:1px 5px;border-radius:3px;">$1</code>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>'):text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML=`<div class="chat-message__avatar">${initial}</div><div class="chat-message__bubble">${html}</div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;}
+function appendTyping(){const id=`typing-${Date.now()}`;const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className='chat-message chat-message--ai';el.id=id;el.innerHTML=`<div class="chat-message__avatar">T</div><div class="chat-message__bubble"><div class="chat-message__typing"><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div></div></div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;return id;}
+function removeTyping(id){const el=document.getElementById(id);if(el)el.remove();}
+function sendChip(btn){document.getElementById('chat-input').value=btn.textContent.trim();autoGrow(document.getElementById('chat-input'));sendChat();}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+
+(function boot(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')showAlreadyComplete();LS_ALL_CODES.forEach(c=>{const key=`tib_module_${c.toLowerCase()}_complete`;const item=document.querySelector(`[data-module="${c}"]`);if(item&&localStorage.getItem(key)==='true'){item.classList.add('complete');const icon=item.querySelector('.lms-nav-item__icon');if(icon)icon.textContent='✓';}});refreshSidebarProgress();renderQuestion();})();
+window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('tib_module_')){refreshSidebarProgress();if(e.key===LS_COMPLETE_KEY&&e.newValue==='true')showAlreadyComplete();}});
+</script>
+</body>
+</html>

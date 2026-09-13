@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="scc-auth-guard.js"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B10 — Practitioner Capstone | SAP Controls &amp; Compliance | TIB Systems Inc.</title>
+  <link rel="stylesheet" href="design-system.css" />
+  <style>
+    .hamburger{display:none;flex-direction:column;gap:5px;background:transparent;border:none;cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);flex-shrink:0;}
+    .hamburger span{display:block;width:22px;height:2px;background:rgba(255,255,255,0.80);border-radius:2px;}
+    @media(max-width:900px){.hamburger{display:flex;}.lms-header__divider{display:none;}}
+    .sidebar-backdrop{display:none;position:fixed;inset:0;top:var(--header-height);background:var(--bg-overlay);z-index:calc(var(--z-overlay)-1);}
+    .sidebar-backdrop.active{display:block;}
+    .module-body p{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);max-width:70ch;}
+    .module-body strong{color:var(--text-primary);font-weight:600;}
+
+    /* ── LETTER STYLES ── */
+    .letter-intro{font-size:var(--scale-lg);font-style:italic;color:var(--text-muted);border-left:3px solid var(--teal);padding:var(--space-4) var(--space-5);margin:0 0 var(--space-8);line-height:var(--leading-relaxed);max-width:60ch;}
+    .tip-block{margin:var(--space-5) 0;padding:var(--space-5) var(--space-6);background:var(--white);border:1px solid var(--grey-100);border-left:4px solid var(--teal);border-radius:var(--radius-xl);box-shadow:var(--shadow-xs);}
+    .tip-block--amber{border-left-color:var(--amber);}
+    .tip-block--navy{border-left-color:var(--navy);}
+    .tip-block--success{border-left-color:var(--color-success);}
+    .tip-block__num{font-family:var(--font-mono);font-size:var(--scale-2xs);font-weight:700;color:var(--teal);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:var(--space-2);}
+    .tip-block--amber .tip-block__num{color:var(--amber);}
+    .tip-block--navy .tip-block__num{color:var(--navy);}
+    .tip-block--success .tip-block__num{color:var(--color-success);}
+    .tip-block__title{font-size:var(--scale-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);}
+    .tip-block__body{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);}
+    .tip-block__body p{margin:0 0 var(--space-3);max-width:66ch;}
+    .tip-block__body p:last-child{margin-bottom:0;}
+    .letter-close{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-top:var(--space-10);padding-top:var(--space-8);border-top:1px solid var(--grey-100);}
+    .letter-sig{margin-top:var(--space-6);font-style:italic;color:var(--text-muted);}
+    .letter-sig strong{color:var(--navy);font-style:normal;}
+
+    /* ── CERTIFICATE GENERATOR ── */
+    .cert-section{background:var(--navy);border-radius:var(--radius-2xl);padding:var(--space-8);margin:var(--space-8) 0;text-align:center;}
+    .cert-section__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:var(--space-3);}
+    .cert-section__title{font-size:var(--scale-2xl);font-weight:700;color:var(--white);margin-bottom:var(--space-2);font-family:var(--font-display);}
+    .cert-section__sub{font-size:var(--scale-sm);color:rgba(255,255,255,0.45);margin-bottom:var(--space-6);}
+    .cert-name-row{display:flex;align-items:center;gap:var(--space-3);max-width:480px;margin:0 auto var(--space-5);}
+    .cert-name-input{flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:var(--radius-xl);padding:var(--space-3) var(--space-4);font-size:var(--scale-base);color:var(--white);font-family:var(--font-body);outline:none;transition:border-color 0.2s ease;}
+    .cert-name-input::placeholder{color:rgba(255,255,255,0.30);}
+    .cert-name-input:focus{border-color:rgba(31,122,140,0.60);}
+    .cert-preview{background:var(--white);border-radius:var(--radius-xl);padding:var(--space-8);margin:var(--space-5) 0 0;display:none;box-shadow:var(--shadow-lg);}
+    .cert-preview.visible{display:block;}
+    #cert-canvas-wrap{position:relative;}
+
+    /* ── PRINTABLE CERTIFICATE (inside cert-preview) ── */
+    .certificate{font-family:'Georgia','Times New Roman',serif;background:var(--white);border:3px solid #1F3864;border-radius:12px;padding:48px 56px;text-align:center;position:relative;overflow:hidden;max-width:760px;margin:0 auto;}
+    .certificate::before{content:'';position:absolute;inset:8px;border:1px solid rgba(31,122,140,0.25);border-radius:8px;pointer-events:none;}
+    .cert-corner{position:absolute;width:40px;height:40px;border-color:#1F7A8C;}
+    .cert-corner--tl{top:14px;left:14px;border-top:2px solid;border-left:2px solid;}
+    .cert-corner--tr{top:14px;right:14px;border-top:2px solid;border-right:2px solid;}
+    .cert-corner--bl{bottom:14px;left:14px;border-bottom:2px solid;border-left:2px solid;}
+    .cert-corner--br{bottom:14px;right:14px;border-bottom:2px solid;border-right:2px solid;}
+    .cert-logo-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:28px;}
+    .cert-logo-mark{width:44px;height:44px;background:#1F3864;border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-size:22px;font-family:'Georgia',serif;font-weight:700;}
+    .cert-brand-name{font-size:18px;font-weight:700;color:#1F3864;letter-spacing:0.02em;font-family:'Georgia',serif;}
+    .cert-brand-sub{font-size:11px;color:#7A8AA8;letter-spacing:0.04em;text-transform:uppercase;}
+    .cert-presents{font-size:13px;color:#7A8AA8;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;}
+    .cert-this{font-size:14px;color:#4A5870;font-style:italic;margin-bottom:20px;}
+    .cert-cert-title{font-size:32px;font-weight:700;color:#1F3864;letter-spacing:-0.01em;margin-bottom:4px;line-height:1.15;}
+    .cert-cert-subtitle{font-size:14px;color:#1F7A8C;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:28px;}
+    .cert-awarded-to{font-size:13px;color:#7A8AA8;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:8px;}
+    .cert-name{font-size:38px;font-weight:700;color:#1F3864;font-family:'Georgia','Times New Roman',serif;border-bottom:2px solid #1F7A8C;display:inline-block;padding-bottom:8px;min-width:300px;margin-bottom:28px;letter-spacing:0.01em;}
+    .cert-prog-name{font-size:14px;color:#4A5870;line-height:1.6;margin-bottom:6px;}
+    .cert-modules{font-size:12px;color:#7A8AA8;letter-spacing:0.04em;margin-bottom:28px;}
+    .cert-divider{width:80px;height:2px;background:#1F7A8C;margin:0 auto 20px;border-radius:1px;}
+    .cert-date-row{font-size:12px;color:#7A8AA8;margin-bottom:28px;}
+    .cert-sig-row{display:flex;justify-content:center;gap:60px;margin-bottom:0;}
+    .cert-sig-block{text-align:center;}
+    .cert-sig-line{width:140px;height:1px;background:#C8D0DF;margin:0 auto 6px;}
+    .cert-sig-name{font-size:13px;font-weight:700;color:#1F3864;}
+    .cert-sig-title{font-size:11px;color:#7A8AA8;text-transform:uppercase;letter-spacing:0.04em;}
+    .cert-badge{position:absolute;top:24px;right:32px;width:56px;height:56px;background:#1F3864;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #1F7A8C;}
+    .cert-badge-inner{font-size:22px;line-height:1;}
+
+    .ring-svg{transform:rotate(-90deg);}
+    .ring-bg{fill:none;stroke:var(--grey-100);stroke-width:3;}
+    .ring-fill{fill:none;stroke:var(--teal);stroke-width:3;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 600ms ease;}
+    .confetti-piece{position:absolute;border-radius:2px;animation:confettiFall linear forwards;}
+
+    @media print{
+      body *{visibility:hidden;}
+      .certificate,.certificate *{visibility:visible;}
+      .certificate{position:fixed;inset:0;border-radius:0;padding:40px 48px;margin:0;border:none;}
+      .certificate::before{inset:6px;}
+    }
+    @media(max-width:900px){
+      .lms-sidebar{position:fixed;left:0;top:var(--header-height);bottom:0;z-index:var(--z-overlay);transform:translateX(-100%);transition:transform var(--transition-slow);}
+      .lms-sidebar.open{transform:translateX(0);box-shadow:var(--shadow-xl);}
+      .lms-content{padding:var(--space-6) var(--space-5) var(--space-16);}
+      .module-hero{padding:var(--space-8) var(--space-5);}
+    }
+    @media(max-width:600px){.module-nav-footer__context{display:none;}}
+  </style>
+</head>
+<body>
+<div class="lms-app" id="app">
+  <header class="lms-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    <a href="../index.html" class="lms-header__logo"><div class="lms-header__logo-mark">T</div><div class="lms-header__brand"><span class="lms-header__brand-name">TIB Systems</span><span class="lms-header__brand-sub">Powered by TIB Systems Inc.</span></div></a>
+    <div class="lms-header__divider"></div>
+    <div class="lms-header__prog"><div class="lms-header__prog-name">SAP Controls &amp; Compliance Training Programme</div><div class="lms-header__prog-sub">10-Module Practitioner Path</div></div>
+    <div class="lms-header__actions">
+      <a href="../index.html" class="btn btn-ghost btn--sm" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.70);font-size:var(--scale-xs);">← All Modules</a>
+      <div class="badge badge--teal" id="header-status-badge">In Progress</div>
+    </div>
+  </header>
+  <div class="lms-body">
+    <aside class="lms-sidebar" id="sidebar">
+      <div class="lms-sidebar__section-label">Foundation</div>
+      <button class="lms-nav-item" data-module="B1" onclick="location.href='b1.html'"><div class="lms-nav-item__icon">B1</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Risk Types</div></div></button>
+      <button class="lms-nav-item" data-module="B2" onclick="location.href='b2.html'"><div class="lms-nav-item__icon">B2</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Types</div></div></button>
+      <button class="lms-nav-item" data-module="B3" onclick="location.href='b3.html'"><div class="lms-nav-item__icon">B3</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Nature</div></div></button>
+      <button class="lms-nav-item" data-module="B4" onclick="location.href='b4.html'"><div class="lms-nav-item__icon">B4</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Why Controls Matter</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Applied</div>
+      <button class="lms-nav-item" data-module="B5" onclick="location.href='b5.html'"><div class="lms-nav-item__icon">B5</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Engagement Types</div></div></button>
+      <button class="lms-nav-item" data-module="B6" onclick="location.href='b6.html'"><div class="lms-nav-item__icon">B6</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">S/4HANA Lifecycle</div></div></button>
+      <button class="lms-nav-item" data-module="B7" onclick="location.href='b7.html'"><div class="lms-nav-item__icon">B7</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Reading FD Documents</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Advanced</div>
+      <button class="lms-nav-item" data-module="B8" onclick="location.href='b8.html'"><div class="lms-nav-item__icon">B8</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Testing Phase</div></div></button>
+      <button class="lms-nav-item" data-module="B9" onclick="location.href='b9.html'"><div class="lms-nav-item__icon">B9</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">AI in Controls</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Capstone</div>
+      <button class="lms-nav-item active" data-module="B10"><div class="lms-nav-item__icon">B10</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Practitioner Capstone</div><div class="lms-nav-item__subtitle">Current module</div></div><div class="lms-nav-item__badge"></div></button>
+      <div style="margin-top:auto;padding:var(--space-5);border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:var(--scale-2xs);color:rgba(255,255,255,0.30);letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-2);">Programme Progress</div>
+        <div class="progress-bar" style="height:5px;background:rgba(255,255,255,0.10);"><div class="progress-bar__fill" id="sidebar-prog-fill" style="width:0%;"></div></div>
+        <div style="font-family:var(--font-mono);font-size:var(--scale-2xs);color:rgba(255,255,255,0.35);margin-top:var(--space-2);" id="sidebar-prog-text">0 / 10 complete</div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+    <main class="lms-main" id="main-scroll">
+      <div class="module-progress-strip">
+        <span class="module-progress-strip__label">Module Progress</span>
+        <div class="module-progress-strip__bar"><div class="progress-bar"><div class="progress-bar__fill" id="mod-prog-bar" style="width:10%;"></div></div></div>
+        <span class="module-progress-strip__pct" id="mod-prog-pct">10%</span>
+      </div>
+      <div class="module-hero" style="background:linear-gradient(135deg,#0D1F3C 0%,#1F3864 60%,#1F7A8C 100%);">
+        <div class="module-hero__inner">
+          <div class="module-hero__eyebrow"><span class="module-hero__code">B10</span><span class="module-hero__prog-label">Capstone · SAP Controls &amp; Compliance Training Programme</span></div>
+          <h1 class="module-hero__title" style="color:var(--white);">Practitioner Capstone</h1>
+          <p class="module-hero__desc" style="color:rgba(255,255,255,0.65);">Ten insights from practitioners who have done this work across multiple engagements and multiple industries. Less framework, more reflection. This is a letter from someone who has been where you are going.</p>
+          <div class="module-hero__meta">
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="module-hero__meta-text" style="color:rgba(255,255,255,0.55);">12–14 min · 10 practitioner tips · Capstone</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span class="module-hero__meta-text" style="color:rgba(255,255,255,0.55);">Knowledge check · Certificate generator · Programme complete</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="module-hero__meta-text" id="hero-status" style="color:rgba(255,255,255,0.55);">In progress</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="lms-content">
+        <div class="learning-objectives animate-fade-in">
+          <div class="learning-objectives__header"><div class="icon-circle icon-circle--md icon-circle--navy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><span class="learning-objectives__title">What This Module Is</span></div>
+          <div class="learning-objectives__list">
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>This is not a framework module. It is a <strong>reflection on what experienced practitioners have learned</strong> — the hard way, across real engagements.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>Ten insights across five themes: starting right, communicating well, maintaining rigour, knowing your audience, and building lasting value.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>After the knowledge check, <strong>generate your programme completion certificate</strong>.</span></div>
+          </div>
+        </div>
+
+        <div class="tabs animate-fade-in">
+          <div class="tabs__nav" role="tablist">
+            <button class="tab-btn active" role="tab" data-tab="content" onclick="switchTab(this,'content')">📖 The Letter</button>
+            <button class="tab-btn" role="tab" data-tab="quiz" onclick="switchTab(this,'quiz')">✏️ Knowledge Check</button>
+            <button class="tab-btn" role="tab" data-tab="certificate" onclick="switchTab(this,'certificate')">🏅 Certificate</button>
+            <button class="tab-btn" role="tab" data-tab="tutor" onclick="switchTab(this,'tutor')">🤖 AI Tutor</button>
+          </div>
+
+          <!-- ══ THE LETTER ══ -->
+          <div class="tab-panel active" id="tab-content">
+            <div class="module-body">
+              <p class="letter-intro">"You have covered the frameworks. You know the vocabulary. You can read an FD, write a control, and navigate a testing cycle. What the frameworks do not teach you — what nobody can teach you before you have done the work — is what I am going to try to write down here. Consider this a letter from someone who has been where you are going."</p>
+
+              <div class="tip-block tip-block--amber">
+                <div class="tip-block__num">Tip 01 · Starting Right</div>
+                <div class="tip-block__title">Always start with pain points.</div>
+                <div class="tip-block__body"><p>Before you walk into your first meeting with a business process team, find out what is keeping them up at night. If you have heard there are problems with the manual journal entry threshold, lead with that. Say: I heard you have been having trouble with this — let us talk about it. The room will change. They have a hundred obligations competing for their attention. Controls is rarely at the top of that list. But when you connect to something they are already worried about, you become relevant immediately. You have something they want to talk about. The conversation you planned becomes one they want to have.</p></div>
+              </div>
+
+              <div class="tip-block">
+                <div class="tip-block__num">Tip 02 · Starting Right</div>
+                <div class="tip-block__title">Establish your approach before you start — and hold to it consistently.</div>
+                <div class="tip-block__body"><p>On a complex programme, you will be working with multiple business process teams at the same time. If you tell the P2P team one thing and the Record-to-Report team something different, word will travel. They will compare notes. Inconsistency creates noise that you will then have to manage on top of everything else. Set your standard approach for how you work, what you deliver, and what you ask of them — and apply it consistently across every team from day one. Consistency is a form of credibility.</p></div>
+              </div>
+
+              <div class="tip-block tip-block--navy">
+                <div class="tip-block__num">Tip 03 · Communicating Well</div>
+                <div class="tip-block__title">Over-communicate, and integrate early.</div>
+                <div class="tip-block__body"><p>The most common reason testing phases go badly is not technical — it is that the controls requirements were not visible to the testing team until it was too late to address them properly. Tell people what you are doing and what you need from them before you need it. Integrate your controls testing requirements into the programme test cases before testing starts. Agree the evidence requirements before the first test is executed. The testing captain relationship only works if you have established it before testing begins. Over-communication is not a weakness — it is how you prevent the avoidable surprises.</p></div>
+              </div>
+
+              <div class="tip-block">
+                <div class="tip-block__num">Tip 04 · Communicating Well</div>
+                <div class="tip-block__title">Tailor every conversation to the person in the room.</div>
+                <div class="tip-block__body"><p>Not everyone you work with will be literate in controls. The P2P business user who owns the three-way match control needs a different conversation than the external auditor who is going to rely on it. The CFO needs a different framing than the implementation partner's functional lead. You will have third-party vendors, external auditors, internal stakeholders, and SAP consultants — all in the same programme, all with different frames of reference. Your job is not to deliver the same explanation repeatedly until they understand it. Your job is to translate what matters into a language that makes sense for each specific person.</p></div>
+              </div>
+
+              <div class="tip-block tip-block--amber">
+                <div class="tip-block__num">Tip 05 · Maintaining Rigour</div>
+                <div class="tip-block__title">Trace everything. Version your RACM from day one.</div>
+                <div class="tip-block__body"><p>The Risk and Controls Matrix is a living document. It will go through multiple iterations from the preliminary draft in Solution Confirmation to the final version at go-live. The ability to trace from the control you tested back to the risk assessment that motivated it — and back to the original programme scope that defined the risk universe — is not just good hygiene. It is audit credibility. When the external auditor asks why a particular control exists, or why it was designed a specific way, the answer should be traceable in the RACM version history. Maintain version control from the first draft. That traceability is part of the value you deliver.</p></div>
+              </div>
+
+              <div class="tip-block tip-block--navy">
+                <div class="tip-block__num">Tip 06 · Maintaining Rigour</div>
+                <div class="tip-block__title">Know your artefact landscape — and what you do when it is incomplete.</div>
+                <div class="tip-block__body"><p>Programmes do not always give you what you need. Some clients will have business process diagrams but not functional design documents. Some will have FDs but nothing that gives you an end-to-end view of the process. When that happens, your job is to figure out how much you have to work with and what you need to get from them. Put the pieces together yourself. Build a preliminary stance on the end-to-end. Do not wait for complete documentation before forming a view — you will wait indefinitely. Work with what you have, identify the gaps explicitly, and pursue them.</p></div>
+              </div>
+
+              <div class="tip-block">
+                <div class="tip-block__num">Tip 07 · Maintaining Rigour</div>
+                <div class="tip-block__title">Be strategic about scope — especially in testing.</div>
+                <div class="tip-block__body"><p>On a programme with hundreds of controls, you cannot test everything in every cycle without burning out the testing team and yourself. Apply the SIT/UAT split. Scope automated and configuration controls for system integration testing. Scope ITDM and manual controls for user acceptance testing. Be deliberate about which controls are key and which are non-key — and use the go-live period to finalise that determination based on what you have seen in testing. A rationalised, well-evidenced set of forty key controls is more valuable than three hundred controls with inconsistent evidence.</p></div>
+              </div>
+
+              <div class="tip-block tip-block--success">
+                <div class="tip-block__num">Tip 08 · Knowing Your Audience</div>
+                <div class="tip-block__title">Master the tools your programme uses — better than the implementers do.</div>
+                <div class="tip-block__body"><p>Every programme uses some kind of tool to track testing, manage defects, and report progress. If you know how to use it better than the people running it, you get to lead the workflow instead of fitting into someone else's. That is a real advantage. It also sends a signal — that you are not just the controls person who shows up with requirements and then waits for the testing team to produce evidence. You are a full participant in how the programme runs. Whatever the tool is — learn it properly before testing starts.</p></div>
+              </div>
+
+              <div class="tip-block tip-block--amber">
+                <div class="tip-block__num">Tip 09 · Building Lasting Value</div>
+                <div class="tip-block__title">Do the change management that nobody else is doing.</div>
+                <div class="tip-block__body"><p>A go-live is not the end of a controls engagement — it is the beginning of an operational reality for the client. The people who will execute these controls from day one may have never heard of the RACM. They may not know what they are supposed to do, how often, or what happens if they miss it. You do not need to run a full change management programme — that is not your scope. But you do need to make sure the control owners know what is changing, what their responsibilities are, and what a compliant execution looks like. At minimum: clear training for ITDM and manual control owners before go-live. If they are not ready on day one, the controls are not operating on day one.</p></div>
+              </div>
+
+              <div class="tip-block tip-block--navy">
+                <div class="tip-block__num">Tip 10 · Building Lasting Value</div>
+                <div class="tip-block__title">Go beyond the engagement — position yourself as a trusted advisor.</div>
+                <div class="tip-block__body"><p>Your primary job on an engagement is to build the controls. But there is more value you can deliver than that. During the programme, surface the risks and improvement opportunities that your position in the workstream uniquely lets you see. After the programme, stay connected. What else could the controls workstream do to better support the client going forward — a more streamlined framework, a rationalised control set, an ongoing monitoring approach? The practitioners who become trusted advisors are not the ones who delivered a clean RACM and moved on. They are the ones who stayed curious about the client's situation, communicated clearly, and made themselves useful beyond the original scope.</p></div>
+              </div>
+
+              <div class="letter-close">
+                <p>Ten tips. Some of them will feel obvious after you have been on a few engagements. Some of them will only land when you have seen what happens when you ignore them. That is how it goes.</p>
+                <p>The work is real. The clients are real. The risks you are designing controls against are real. And the practitioner who does this work well — who understands the frameworks, communicates clearly, builds relationships, maintains rigour, and stays curious — genuinely makes organisations safer. That is worth something.</p>
+                <p>Go do good work.</p>
+                <div class="letter-sig">
+                  <strong>Isaac Babson</strong><br>
+                  Managing Partner &amp; Principal Consultant<br>
+                  TIB Systems Inc. | academy@tib-systems.com
+                </div>
+
+              <div style="margin-top:var(--space-8);padding:var(--space-5) var(--space-6);background:var(--navy);border-radius:var(--radius-2xl);display:flex;align-items:center;gap:var(--space-5);">
+                <div style="font-size:2rem;flex-shrink:0;">📋</div>
+                <div style="flex:1;">
+                  <div style="font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--teal-light);margin-bottom:var(--space-1);">Practitioner Toolkit</div>
+                  <div style="font-size:var(--scale-base);font-weight:700;color:var(--white);margin-bottom:var(--space-1);">KABO-TRN-CTL-TLK-001 — Five Reference Cards</div>
+                  <div style="font-size:var(--scale-xs);color:rgba(255,255,255,0.45);">Quick-Start Checklist · RACM Version Log · Evidence Spec · Stakeholder Map · FD Review Framework</div>
+                </div>
+                <a href="KABO-TRN-CTL-TLK-001-Practitioner-Toolkit.pdf" download class="btn btn-primary">⬇ Download PDF</a>
+              </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ QUIZ ══ -->
+          <div class="tab-panel" id="tab-quiz">
+            <div class="quiz-block">
+              <div class="quiz-block__header"><div class="quiz-block__icon">✏️</div><div class="quiz-block__title">Knowledge Check — B10 Practitioner Capstone</div><div class="quiz-block__counter" id="quiz-counter">Q1 of 5</div></div>
+              <div class="quiz-block__body" id="quiz-body">
+                <div id="quiz-question-wrap"><div class="quiz-question" id="quiz-q-text">Loading…</div><div class="quiz-options" id="quiz-options"></div><div class="quiz-feedback" id="quiz-feedback"><div class="quiz-feedback__icon" id="quiz-fb-icon"></div><div class="quiz-feedback__text" id="quiz-fb-text"></div></div></div>
+                <div class="quiz-score-display hidden" id="quiz-score-screen">
+                  <div class="quiz-score-display__number" id="quiz-score-num">—</div>
+                  <div class="quiz-score-display__label">Your Score</div>
+                  <div style="margin-top:var(--space-4);font-size:var(--scale-sm);color:var(--text-secondary);max-width:40ch;margin-left:auto;margin-right:auto;" id="quiz-score-msg"></div>
+                  <div style="margin-top:var(--space-8);display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="restartQuiz()">Retake Quiz</button>
+                    <button class="btn btn-primary" onclick="switchTab(document.querySelector('[data-tab=certificate]'),'certificate')">🏅 Generate Certificate</button>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-block__footer" id="quiz-footer">
+                <div style="font-size:var(--scale-xs);color:var(--text-muted);"><span id="quiz-score-track">Score: 0 / 0</span></div>
+                <div style="display:flex;gap:var(--space-3);">
+                  <button class="btn btn-ghost btn--sm" id="quiz-check-btn" onclick="checkAnswer()" disabled>Check Answer</button>
+                  <button class="btn btn-primary btn--sm hidden" id="quiz-next-btn" onclick="nextQuestion()">Next →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ CERTIFICATE ══ -->
+          <div class="tab-panel" id="tab-certificate">
+            <div class="cert-section">
+              <div class="cert-section__label">🏅 Programme Completion Certificate</div>
+              <div class="cert-section__title">You Did It.</div>
+              <div class="cert-section__sub">Enter your name to generate your personalised certificate. You can print it or save it as a PDF.</div>
+              <div class="cert-name-row">
+                <input type="text" class="cert-name-input" id="cert-name-input" placeholder="Enter your full name…" maxlength="60" />
+                <button class="btn btn-primary" onclick="generateCertificate()">Generate</button>
+              </div>
+              <div id="cert-preview" class="cert-preview">
+                <div class="certificate" id="cert-printable">
+                  <div class="cert-corner cert-corner--tl"></div>
+                  <div class="cert-corner cert-corner--tr"></div>
+                  <div class="cert-corner cert-corner--bl"></div>
+                  <div class="cert-corner cert-corner--br"></div>
+                  <div class="cert-badge"><div class="cert-badge-inner">🎓</div></div>
+                  <div class="cert-logo-row">
+                    <div class="cert-logo-mark">T</div>
+                    <div><div class="cert-brand-name">TIB Systems Inc.</div><div class="cert-brand-sub">tib-systems.com</div></div>
+                  </div>
+                  <div class="cert-presents">Presents</div>
+                  <div class="cert-this">This Certificate of Completion to</div>
+                  <div class="cert-awarded-to">Awarded to</div>
+                  <div class="cert-name" id="cert-name-display">Your Name</div>
+                  <div class="cert-cert-title">Certificate of Completion</div>
+                  <div class="cert-cert-subtitle">SAP Controls &amp; Compliance</div>
+                  <div class="cert-prog-name">SAP Controls &amp; Compliance Training Programme<br>10-Module Practitioner Path · B1 through B10</div>
+                  <div class="cert-modules">Risk Types · Control Types · Control Nature · Why Controls Matter · Engagement Types ·<br>S/4HANA Lifecycle · Reading FD Documents · Testing Phase · AI in Controls · Practitioner Capstone</div>
+                  <div class="cert-divider"></div>
+                  <div class="cert-date-row">Completed on <strong id="cert-date-display">—</strong></div>
+                  <div class="cert-sig-row">
+                    <div class="cert-sig-block"><div class="cert-sig-line"></div><div class="cert-sig-name">Isaac Babson</div><div class="cert-sig-title">Programme Director<br>Managing Partner, TIB Systems Inc.</div></div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:var(--space-3);justify-content:center;margin-top:var(--space-5);">
+                  <button class="btn btn-primary" onclick="window.print()">🖨 Print Certificate</button>
+                  <button class="btn btn-ghost" onclick="regenerate()">Change Name</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ AI TUTOR ══ -->
+          <div class="tab-panel" id="tab-tutor">
+            <div class="ai-tutor">
+              <div class="ai-tutor__header"><div class="ai-tutor__avatar">🤖</div><div class="ai-tutor__info"><div class="ai-tutor__name">TIB AI Tutor</div><div class="ai-tutor__status"><div class="ai-tutor__status-dot"></div>Ready — Module B10 context loaded</div></div><div class="ai-tutor__badge">Powered by Claude</div></div>
+              <div class="ai-tutor__messages" id="chat-messages">
+                <div class="chat-message chat-message--ai"><div class="chat-message__avatar">T</div><div class="chat-message__bubble">👋 Welcome to Module B10 — the <strong>Practitioner Capstone</strong>.<br><br>This is the final module of the programme. I have full context on all ten practitioner tips — from starting with pain points and establishing consistency, through traceability and artefact triage, to the trusted advisor framing and change management at go-live. Ask me anything about applying any of these in a real engagement context.</div></div>
+              </div>
+              <div class="ai-tutor__prompt-row">
+                <button class="prompt-chip" onclick="sendChip(this)">How do I start with pain points in practice?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What does 'trace everything' mean day to day?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">How do I tailor conversations for different stakeholders?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What does going beyond the engagement look like?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Why is consistency across teams so important?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Give me a quiz hint</button>
+              </div>
+              <div class="ai-tutor__input-row">
+                <textarea class="ai-tutor__textarea" id="chat-input" placeholder="Ask anything about Module B10 — Practitioner Capstone…" rows="1" onkeydown="handleChatKey(event)" oninput="autoGrow(this)"></textarea>
+                <button class="ai-tutor__send" id="chat-send" onclick="sendChat()" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div><!-- /tabs -->
+
+        <div class="completion-banner hidden" id="completion-banner">
+          <div class="completion-banner__confetti" id="confetti-wrap"></div>
+          <div class="completion-banner__inner">
+            <span class="completion-banner__icon">🎓</span>
+            <h2 class="completion-banner__title">Programme Complete!</h2>
+            <p class="completion-banner__subtitle">You have completed all ten modules of the SAP Controls &amp; Compliance Training Programme. Go generate your certificate.</p>
+            <div class="completion-banner__stats">
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-score">—</div><div class="completion-banner__stat-label">Final Score</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value">10/10</div><div class="completion-banner__stat-label">Modules</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-time">—</div><div class="completion-banner__stat-label">Time</div></div>
+            </div>
+            <button class="btn btn-primary btn--xl" onclick="switchTab(document.querySelector('[data-tab=certificate]'),'certificate')">🏅 Generate Your Certificate →</button>
+          </div>
+        </div>
+      </div><!-- /lms-content -->
+
+      <footer class="module-nav-footer">
+        <div class="module-nav-footer__context">
+          <svg class="module-nav-footer__progress-ring ring-svg" viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="15.9"/><circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15.9"/></svg>
+          <div class="module-nav-footer__labels"><div class="module-nav-footer__module">Module B10 · Capstone</div><div class="module-nav-footer__title">Practitioner Capstone</div></div>
+        </div>
+        <div class="module-nav-footer__actions">
+          <a href="b9.html" class="btn btn-ghost btn--sm">← B9</a>
+          <button class="btn btn-ghost btn--sm" id="mark-complete-btn" onclick="markComplete()">Mark Complete</button>
+          <button class="btn btn-navy btn--sm" onclick="switchTab(document.querySelector('[data-tab=certificate]'),'certificate')">🏅 Certificate</button>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+<script>
+const CLAUDE_API_KEY='sk-ant-api03-6S-zY5EX14Ity0O8rV9tk12lMdtk1QVBuc0RbxmLWssAqcE5avVmWPL3F_K-IMe8whHE9YdA-zxF7NFUuA2b-w-cM';
+const LS_COMPLETE_KEY='tib_module_b10_complete';
+const LS_NAME_KEY='tib_learner_name';
+const LS_ALL_CODES=['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'];
+const MODULE_START_MS=Date.now();
+
+// ── CERTIFICATE GENERATOR ─────────────────────────────────
+function generateCertificate(){
+  const input=document.getElementById('cert-name-input');
+  let name=input.value.trim();
+  if(!name){name=localStorage.getItem(LS_NAME_KEY)||'';input.value=name;}
+  if(!name){showToast('warning','Name Required','Please enter your full name to generate the certificate.');input.focus();return;}
+  localStorage.setItem(LS_NAME_KEY,name);
+  document.getElementById('cert-name-display').textContent=name;
+  const now=new Date();
+  const opts={year:'numeric',month:'long',day:'numeric'};
+  document.getElementById('cert-date-display').textContent=now.toLocaleDateString('en-GB',opts);
+  document.getElementById('cert-preview').style.display='block';
+  setTimeout(()=>document.getElementById('cert-preview').scrollIntoView({behavior:'smooth',block:'center'}),150);
+  showToast('success','Certificate Ready','Print or save as PDF using your browser\'s print function.',5000);
+}
+function regenerate(){document.getElementById('cert-preview').style.display='none';document.getElementById('cert-name-input').focus();}
+
+// ── QUIZ ─────────────────────────────────────────────────
+const QUIZ=[
+  {
+    q:'A controls practitioner is preparing for their first working session with the Order-to-Cash business process team on a new S/4HANA engagement. Before the session, they heard that the team has been struggling with their manual credit limit approval process — it is slow and inconsistently applied. How should the practitioner open the session?',
+    opts:[
+      {t:'Open by presenting the full RACM methodology and explaining how controls will be designed for the O2C process.',c:false},
+      {t:'Lead with the credit limit approval pain point — "I understand you have been having challenges with how credit approvals are processed. Let us start there."',c:true},
+      {t:'Begin by asking the team to walk through their current-state process in full before discussing any controls requirements.',c:false},
+      {t:'Open by explaining the difference between key and non-key controls, since the credit limit approval will need to be classified.',c:false}
+    ],
+    exp:'Correct. Tip 01: always start with pain points. When you connect to something the business team is already worried about, you become relevant immediately. The credit limit approval problem gives you an opening that is theirs — not a controls framework they were not expecting. The conversation you planned becomes one they want to have. Option A leads with methodology, which is less engaging than the team\'s actual concern. Option C delays addressing the pain point in favour of process mapping. Option D opens with classification theory when the team wants to solve a real problem.'
+  },
+  {
+    q:'A controls practitioner has been working on two business process streams simultaneously — P2P and Record-to-Report. In the P2P stream, they agreed that controls evidence would be submitted weekly. In the RTR stream, under time pressure, they agreed to ad hoc submissions. The RTR team has now mentioned that "P2P gets a different standard" and is pushing back on the evidence approach. What does this situation illustrate?',
+    opts:[
+      {t:'Different process streams legitimately require different evidence approaches — the RTR team\'s pushback is unreasonable.',c:false},
+      {t:'The controls team should have established a consistent evidence approach across both streams before beginning — inconsistency creates noise and unnecessary friction.',c:true},
+      {t:'The RTR team should be managed through the programme manager rather than directly by the controls practitioner.',c:false},
+      {t:'The P2P team\'s weekly submission standard is the right approach and RTR should be brought into line.',c:false}
+    ],
+    exp:'Correct. Tip 02: establish consistency across all teams from day one. The source session is direct: if you tell one team one thing and another team something different, they will compare notes. That creates unnecessary noise you will then have to manage on top of everything else. Consistency is a form of credibility — when every team gets the same standard, there is nothing to push back against. The practitioner\'s error here was making a different deal under time pressure. Option A accepts the inconsistency as reasonable. Option C escalates when direct resolution is the right move. Option D picks a winner rather than establishing a consistent standard.'
+  },
+  {
+    q:'A controls practitioner is preparing for a cutover review meeting. The go-live is in two weeks. The RACM is finalised, testing is complete, and defects have been resolved. The external auditor has confirmed the control design. What is the most important remaining action before go-live?',
+    opts:[
+      {t:'Run a final pass through the RACM to check for any redundant controls that could be rationalised before go-live.',c:false},
+      {t:'Ensure that the control owners — particularly those responsible for ITDM and manual controls — have been trained on what to do, how often, what evidence to produce, and how to escalate exceptions.',c:true},
+      {t:'Prepare a written summary of the testing results for the programme sponsor before any go-live activities proceed.',c:false},
+      {t:'Schedule a post-go-live review session with the external auditor to confirm that controls are operating as designed.',c:false}
+    ],
+    exp:'Correct. Tip 09: do the change management that nobody else is doing. A go-live is not the end of a controls engagement — it is the beginning of an operational reality. The people who will execute these controls from day one may have never heard of the RACM. They need to know what they are responsible for, how often, what a compliant execution looks like, and what to do when something goes wrong. ITDM and manual controls depend entirely on the human element — if the control owner does not know what they are doing on day one, the control is not operating on day one. RACM rationalisation (Option A) should have happened earlier in the process. The programme sponsor summary (Option C) is useful but not the most important action. The post-go-live auditor session (Option D) is a future activity.'
+  },
+  {
+    q:'A controls practitioner has completed a successful S/4HANA engagement. The RACM is approved, go-live has happened, and the engagement is formally closed. The client\'s Finance Director mentions that they are struggling with inconsistent control execution six months after go-live — some control owners are performing the reviews, others are not. What is the practitioner\'s appropriate response?',
+    opts:[
+      {t:'The engagement is complete — post-go-live operational issues are outside the original scope and should be handled by the client\'s internal team.',c:false},
+      {t:'Engage with the Finance Director to understand the gap, identify what support the controls workstream could provide post-go-live, and position the team as a resource for ongoing improvement.',c:true},
+      {t:'Recommend that the client hire a full-time internal controls manager to address the execution consistency issue.',c:false},
+      {t:'Send the Finance Director a copy of the RACM with a reminder of the control owner responsibilities that were agreed at go-live.',c:false}
+    ],
+    exp:'Correct. Tip 10: go beyond the engagement — position yourself as a trusted advisor. The practitioners who become trusted advisors do not deliver a clean RACM and move on. They stay curious about the client\'s situation, communicate clearly, and make themselves useful beyond the original scope. The Finance Director has come to them with a real problem six months post-go-live. That is an invitation — not a burden. Understanding what happened, identifying what support could help, and positioning the controls workstream as a long-term resource is exactly the trusted advisor role. Option A treats the engagement boundary as a hard stop on being useful. Option C deflects to a hiring recommendation. Option D sends documentation when the client needs engagement.'
+  },
+  {
+    q:'A controls practitioner receives an incomplete artefact package from the programme team. They have functional design documents for the financial accounting processes but no business process diagrams or end-to-end process flows. What is the correct approach?',
+    opts:[
+      {t:'Request the missing business process diagrams from the programme team and pause RACM development until the complete artefact package is available.',c:false},
+      {t:'Work with the FDs available to develop a preliminary view of the end-to-end, identify the specific gaps in the artefact picture, and pursue those gaps actively while continuing to make progress.',c:true},
+      {t:'Proceed entirely from the FDs and note in the RACM that the risk universe may be incomplete due to missing artefacts.',c:false},
+      {t:'Escalate the incomplete documentation to the programme manager as a risk to the controls workstream delivery timeline.',c:false}
+    ],
+    exp:'Correct. Tip 06: know your artefact landscape — and what you do when it is incomplete. Programmes do not always give you what you need. When that happens, you figure out how much you have to work with and what you need to get from them. You put the pieces together, build a preliminary stance on the end-to-end from what you have, and actively pursue the gaps. You do not wait for complete documentation before forming a view — you will wait indefinitely. Option A pauses progress, which is rarely the right answer on a complex programme. Option C accepts the incomplete picture without pursuing the gaps. Option D escalates as a risk when the practitioner\'s job is to make progress with imperfect information.'
+  }
+];
+
+let QS={idx:0,sel:null,answered:false,score:0};
+function renderQuestion(){if(QS.idx>=QUIZ.length){showScoreScreen();return;}const q=QUIZ[QS.idx];document.getElementById('quiz-counter').textContent=`Q${QS.idx+1} of ${QUIZ.length}`;document.getElementById('quiz-q-text').textContent=q.q;const opts=document.getElementById('quiz-options');opts.innerHTML='';['A','B','C','D'].forEach((ltr,i)=>{const btn=document.createElement('button');btn.className='quiz-option';btn.innerHTML=`<div class="quiz-option__marker">${ltr}</div><div class="quiz-option__text">${q.opts[i].t}</div>`;btn.addEventListener('click',()=>selectOpt(i));opts.appendChild(btn);});document.getElementById('quiz-feedback').className='quiz-feedback';document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.add('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx}`;QS.sel=null;QS.answered=false;}
+function selectOpt(i){if(QS.answered)return;QS.sel=i;document.querySelectorAll('.quiz-option').forEach((b,j)=>b.classList.toggle('selected',j===i));document.getElementById('quiz-check-btn').disabled=false;}
+function checkAnswer(){if(QS.sel===null||QS.answered)return;QS.answered=true;const q=QUIZ[QS.idx];const correct=q.opts[QS.sel].c;if(correct)QS.score++;document.querySelectorAll('.quiz-option').forEach((btn,i)=>{btn.classList.add('disabled');if(q.opts[i].c)btn.classList.add('correct');else if(i===QS.sel&&!correct)btn.classList.add('incorrect');});const fb=document.getElementById('quiz-feedback');fb.className=`quiz-feedback visible quiz-feedback--${correct?'correct':'incorrect'}`;document.getElementById('quiz-fb-icon').textContent=correct?'✅':'❌';document.getElementById('quiz-fb-text').textContent=q.exp;document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.remove('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx+1}`;}
+function nextQuestion(){QS.idx++;if(QS.idx>=QUIZ.length)showScoreScreen();else renderQuestion();}
+function showScoreScreen(){const pct=Math.round((QS.score/QUIZ.length)*100);const msgs=[[80,'🌟 Excellent. You have the practitioner mindset — not just the frameworks.'],[60,'👍 Good work — programme complete. Review explanations on any questions you missed.'],[0,'📖 Re-read the tips and retake — you are almost there.']];const msg=msgs.find(m=>pct>=m[0]);document.getElementById('quiz-score-num').textContent=`${QS.score}/${QUIZ.length}`;document.getElementById('quiz-score-msg').textContent=msg[1];document.getElementById('quiz-question-wrap').classList.add('hidden');document.getElementById('quiz-score-screen').classList.remove('hidden');document.getElementById('quiz-footer').classList.add('hidden');document.getElementById('stat-score').textContent=`${pct}%`;if(pct>=60){setTimeout(()=>markComplete(pct),800);}}
+function restartQuiz(){QS={idx:0,sel:null,answered:false,score:0};document.getElementById('quiz-question-wrap').classList.remove('hidden');document.getElementById('quiz-score-screen').classList.add('hidden');document.getElementById('quiz-footer').classList.remove('hidden');renderQuestion();}
+
+function markComplete(score){localStorage.setItem(LS_COMPLETE_KEY,'true');(async function(){try{if(window.__sccSb&&window.__sccUserEmail){await window.__sccSb.from('sapexec_scc_progress').upsert({email:window.__sccUserEmail,module_id:'b10'},{onConflict:'email,module_id'});}}catch(e){console.warn('sapexec_scc_progress sync failed',e);}})();refreshSidebarProgress();const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Programme Complete';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Done';btn.disabled=true;}setProgress(100);const mins=Math.max(1,Math.round((Date.now()-MODULE_START_MS)/60000));document.getElementById('stat-time').textContent=`${mins}m`;const banner=document.getElementById('completion-banner');if(banner){banner.classList.remove('hidden');setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'center'}),200);launchConfetti();}
+// Auto-populate cert name input
+const savedName=localStorage.getItem(LS_NAME_KEY)||'';if(savedName){document.getElementById('cert-name-input').value=savedName;}
+showToast('success','Programme Complete!','All 10 modules done. Generate your certificate!',6000);}
+function showAlreadyComplete(){const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Programme Complete';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Done';btn.disabled=true;}setProgress(100);const savedName=localStorage.getItem(LS_NAME_KEY)||'';if(savedName){document.getElementById('cert-name-input').value=savedName;}}
+function setProgress(pct){const bar=document.getElementById('mod-prog-bar');const txt=document.getElementById('mod-prog-pct');const ring=document.getElementById('ring-fill');if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=pct+'%';if(ring)ring.style.strokeDashoffset=100-pct;}
+function refreshSidebarProgress(){const done=LS_ALL_CODES.filter(c=>localStorage.getItem(`tib_module_${c.toLowerCase()}_complete`)==='true').length;const pct=Math.round((done/10)*100);const fill=document.getElementById('sidebar-prog-fill');const txt=document.getElementById('sidebar-prog-text');if(fill)fill.style.width=pct+'%';if(txt)txt.textContent=`${done} / 10 complete`;}
+const TAB_PROGRESS={content:20,quiz:65,certificate:90,tutor:80};
+function switchTab(btn,tabId){if(typeof btn==='string'){tabId=btn;btn=document.querySelector(`[data-tab="${tabId}"]`);}document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));if(btn)btn.classList.add('active');const panel=document.getElementById(`tab-${tabId}`);if(panel)panel.classList.add('active');if(localStorage.getItem(LS_COMPLETE_KEY)!=='true')setProgress(TAB_PROGRESS[tabId]||10);}
+document.getElementById('hamburger').addEventListener('click',()=>{const sb=document.getElementById('sidebar');const bd=document.getElementById('sidebar-backdrop');const open=sb.classList.toggle('open');bd.classList.toggle('active',open);});
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-backdrop').classList.remove('active');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+document.getElementById('main-scroll').addEventListener('scroll',function(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')return;const pct=Math.round((this.scrollTop/Math.max(1,this.scrollHeight-this.clientHeight))*100);setProgress(Math.min(pct,19));});
+function launchConfetti(){const wrap=document.getElementById('confetti-wrap');if(!wrap)return;wrap.innerHTML='';const cols=['1F7A8C','C65911','FFFFFF','5BB5C6','F0A070','1F3864','2AA860','FFD700'];for(let i=0;i<80;i++){const el=document.createElement('div');el.className='confetti-piece';el.style.cssText=`left:${Math.random()*100}%;top:${-10-Math.random()*20}px;background:#${cols[Math.floor(Math.random()*cols.length)]};width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${1.5+Math.random()*3}s;animation-delay:${Math.random()*1}s;`;wrap.appendChild(el);}}
+function showToast(type,title,msg,ms=4000){const icons={success:'✅',info:'ℹ️',warning:'⚠️',error:'❌'};const el=document.createElement('div');el.className=`toast toast--${type}`;el.innerHTML=`<div class="toast__icon">${icons[type]||'ℹ️'}</div><div><div class="toast__title">${title}</div><div class="toast__message">${msg}</div></div>`;document.getElementById('toasts').appendChild(el);setTimeout(()=>{el.style.cssText='opacity:0;transform:translateY(8px);transition:all 300ms ease;';setTimeout(()=>el.remove(),300);},ms);}
+document.getElementById('cert-name-input').addEventListener('keydown',e=>{if(e.key==='Enter')generateCertificate();});
+
+const SYSTEM_PROMPT=`You are TIB AI Tutor — an expert SAP GRC and Internal Controls instructor for TIB Systems Inc.
+
+You are supporting Module B10: Practitioner Capstone, from the SAP Controls & Compliance Training Programme.
+
+MODULE B10 CONTEXT — Ten Practitioner Tips:
+1. Start with pain points: Lead with what the business team is already worried about. Connect to their reality first.
+2. Establish consistency: Set one approach across all process streams from day one. Inconsistency creates noise.
+3. Over-communicate and integrate early: Make controls testing requirements visible before testing starts. Testing captain relationship must be set up before testing begins.
+4. Tailor conversations: P2P business users need a different conversation than external auditors or CFOs. Translate what matters for each specific person.
+5. Trace everything: Version the RACM from day one. Ability to trace from the go-live control back to the original risk assessment is audit credibility.
+6. Know your artefact landscape: Work with what you have. Build a preliminary stance. Pursue gaps actively — do not wait for complete documentation.
+7. Be strategic about scope in testing: SIT/UAT split. Key vs non-key determination at go-live. A rationalised evidenced set beats unmanaged volume.
+8. Master the tools: Know the testing/tracking tool better than the implementers. That earns you influence over workflow.
+9. Do the change management: Control owners must know what to do on day one. ITDM and manual controls depend on the human element — train them before go-live.
+10. Go beyond the engagement: Trusted advisor positioning. After the programme, stay connected. Surface improvement opportunities. Make yourself useful beyond the original scope.
+
+TONE: Warm, reflective, experienced. This is the capstone module — a different register from B1–B9. Can be more conversational and reflective. Quiz hints = conceptual nudge only.`;
+
+let chatHistory=[];
+async function sendChat(){const input=document.getElementById('chat-input');const sendBtn=document.getElementById('chat-send');const text=input.value.trim();if(!text)return;appendMsg('user',text);chatHistory.push({role:'user',content:text});input.value='';autoGrow(input);sendBtn.disabled=true;const typingId=appendTyping();try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:chatHistory})});if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}const data=await res.json();const reply=(data.content||[]).map(b=>b.type==='text'?b.text:'').join('');removeTyping(typingId);appendMsg('ai',reply);chatHistory.push({role:'assistant',content:reply});}catch(err){removeTyping(typingId);appendMsg('ai',`⚠️ Connection error: ${err.message}`);}finally{sendBtn.disabled=false;}}
+function appendMsg(role,text){const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className=`chat-message chat-message--${role}`;const initial=role==='ai'?'T':'U';const html=role==='ai'?text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code style="font-family:var(--font-mono);font-size:0.9em;background:var(--grey-100);padding:1px 5px;border-radius:3px;">$1</code>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>'):text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML=`<div class="chat-message__avatar">${initial}</div><div class="chat-message__bubble">${html}</div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;}
+function appendTyping(){const id=`typing-${Date.now()}`;const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className='chat-message chat-message--ai';el.id=id;el.innerHTML=`<div class="chat-message__avatar">T</div><div class="chat-message__bubble"><div class="chat-message__typing"><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div></div></div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;return id;}
+function removeTyping(id){const el=document.getElementById(id);if(el)el.remove();}
+function sendChip(btn){document.getElementById('chat-input').value=btn.textContent.trim();autoGrow(document.getElementById('chat-input'));sendChat();}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+(function boot(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')showAlreadyComplete();LS_ALL_CODES.forEach(c=>{const key=`tib_module_${c.toLowerCase()}_complete`;const item=document.querySelector(`[data-module="${c}"]`);if(item&&localStorage.getItem(key)==='true'){item.classList.add('complete');const icon=item.querySelector('.lms-nav-item__icon');if(icon)icon.textContent='✓';}});refreshSidebarProgress();renderQuestion();const savedName=localStorage.getItem(LS_NAME_KEY)||'';if(savedName)document.getElementById('cert-name-input').value=savedName;})();
+window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('tib_module_')){refreshSidebarProgress();if(e.key===LS_COMPLETE_KEY&&e.newValue==='true')showAlreadyComplete();}});
+</script>
+</body>
+</html>

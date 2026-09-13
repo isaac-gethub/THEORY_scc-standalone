@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Session guard: same local-session check as every other module in this app -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="scc-auth-guard.js"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Primary Goals of SAP Controls &amp; Compliance | TIB Systems Inc.</title>
+  <link rel="stylesheet" href="design-system.css" />
+
+  <style>
+    .fg-wrap { max-width: 920px; margin: 0 auto; padding: var(--space-8) var(--space-5) var(--space-16); }
+    .fg-eyebrow { color: var(--teal); font-size: var(--scale-xs); letter-spacing: var(--tracking-caps, 0.08em); text-transform: uppercase; font-weight: 700; margin-bottom: var(--space-2); }
+    .fg-title { color: var(--navy); font-size: var(--scale-3xl); margin: 0 0 var(--space-2); }
+    .fg-sub { color: var(--navy-mid); font-size: var(--scale-md); margin: 0 0 var(--space-8); max-width: 68ch; }
+    .fg-back { display: inline-flex; align-items: center; gap: 6px; color: var(--teal); text-decoration: none; font-size: var(--scale-sm); font-weight: 600; margin-bottom: var(--space-6); }
+    .fg-goal { background: #fff; border: 1px solid var(--navy-faint); border-left: 4px solid var(--teal); border-radius: var(--radius-lg); padding: var(--space-5) var(--space-6); margin-bottom: var(--space-4); }
+    .fg-goal h3 { margin: 0 0 var(--space-2); color: var(--navy); font-size: var(--scale-lg); }
+    .fg-goal ul { margin: 0; padding-left: 1.2em; }
+    .fg-goal li { margin-bottom: var(--space-2); line-height: 1.55; }
+    .fg-section-title { color: var(--navy); font-size: var(--scale-xl); margin: var(--space-12) 0 var(--space-2); }
+    .fg-section-note { color: var(--navy-mid); font-size: var(--scale-sm); margin: 0 0 var(--space-6); }
+    .fg-table-wrap { overflow-x: auto; margin-bottom: var(--space-8); border: 1px solid var(--navy-faint); border-radius: var(--radius-lg); }
+    table.fg-table { width: 100%; border-collapse: collapse; font-size: var(--scale-sm); }
+    table.fg-table caption { text-align: left; background: var(--navy); color: #fff; font-weight: 700; padding: var(--space-3) var(--space-4); caption-side: top; font-size: var(--scale-base); }
+    table.fg-table th { background: var(--navy-faint); color: var(--navy); text-align: left; padding: var(--space-3) var(--space-4); font-weight: 700; }
+    table.fg-table td { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--navy-faint); vertical-align: top; line-height: 1.5; }
+    table.fg-table td:first-child { font-weight: 600; color: var(--navy); width: 26%; }
+    .fg-markread { margin-top: var(--space-10); text-align: center; }
+    .fg-markread button { background: var(--navy); color: #fff; border: none; border-radius: var(--radius-md); padding: 12px 28px; font-size: var(--scale-base); font-weight: 600; cursor: pointer; }
+    .fg-markread button[disabled] { background: var(--color-success, #43A047); cursor: default; }
+  </style>
+</head>
+<body>
+
+<div class="fg-wrap">
+  <a class="fg-back" href="../index.html">&larr; Back to modules</a>
+  <div class="fg-eyebrow">Foundational — read before Module B1</div>
+  <h1 class="fg-title">Primary Goals of SAP Controls &amp; Compliance</h1>
+  <p class="fg-sub">Before starting B1–B10, get grounded in why SAP controls exist at all. Every module in this programme ties back to one or more of the seven goals below.</p>
+
+  <div class="fg-goal">
+    <h3>1. Regulatory Compliance</h3>
+    <ul>
+      <li><strong>SOX (Sarbanes-Oxley)</strong> — ICFR (Internal Control over Financial Reporting), ensuring financial statements are free of material misstatement</li>
+      <li><strong>Industry-specific mandates</strong> — GDPR (data privacy), HIPAA (healthcare), Basel III (banking), local statutory requirements</li>
+      <li><strong>External audit readiness</strong> — providing auditors with evidence controls operate effectively, avoiding audit findings/qualified opinions</li>
+    </ul>
+  </div>
+
+  <div class="fg-goal">
+    <h3>2. Fraud Prevention &amp; Detection</h3>
+    <ul>
+      <li><strong>Segregation of Duties (SoD)</strong> — no single user can execute conflicting steps in a process end-to-end (e.g., create vendor + post payment)</li>
+      <li><strong>Sensitive access controls</strong> — restricting powerful transactions (mass changes, direct table updates, debug/change access) to authorized, monitored users</li>
+      <li><strong>Detective controls</strong> — anomaly monitoring, exception reports, continuous controls monitoring (CCM) to catch fraud that preventive controls miss</li>
+    </ul>
+  </div>
+
+  <div class="fg-goal">
+    <h3>3. Financial Statement Integrity</h3>
+    <ul>
+      <li>Accuracy, completeness, and validity of transactions posted to the ledger</li>
+      <li>Proper authorization hierarchies (approval limits, workflow release strategies)</li>
+      <li>Reliable cutoff, valuation, and reconciliation processes</li>
+    </ul>
+  </div>
+
+  <div class="fg-goal">
+    <h3>4. Operational Risk Management</h3>
+    <ul>
+      <li>Protecting against unauthorized or erroneous transactions that disrupt business operations</li>
+      <li>Business continuity — ensuring critical processes (O2C, P2P, R2R) aren't compromised by access or config errors</li>
+      <li>Data integrity across master data (vendor, customer, material, GL accounts)</li>
+    </ul>
+  </div>
+
+  <div class="fg-goal">
+    <h3>5. IT General Controls (ITGCs) — the technical backbone</h3>
+    <ul>
+      <li><strong>Change management</strong> — controlled transport path, no direct production changes</li>
+      <li><strong>Access management</strong> — provisioning/deprovisioning aligned to role, periodic access recertification</li>
+      <li><strong>Computer operations</strong> — job scheduling, batch monitoring, backup/recovery</li>
+    </ul>
+  </div>
+
+  <div class="fg-goal">
+    <h3>6. Accountability &amp; Traceability</h3>
+    <ul>
+      <li>Audit trails (change documents, table logging) that answer "who did what, when, and was it authorized"</li>
+      <li>Clear ownership of controls (control owners, risk owners) so failures have accountability</li>
+    </ul>
+  </div>
+
+  <div class="fg-goal">
+    <h3>7. Stakeholder Confidence</h3>
+    <ul>
+      <li>Investor and board assurance that governance is sound</li>
+      <li>Reduced insurance/regulatory risk exposure</li>
+      <li>Reputational protection — control failures often become public failures</li>
+    </ul>
+  </div>
+
+  <h2 class="fg-section-title">Expanded: SAP Activity vs. Non-SAP Activity</h2>
+  <p class="fg-section-note">The same seven goals, showing how each is actually carried out inside SAP versus through non-SAP (manual, organizational, or third-party) activity.</p>
+
+  <div class="fg-table-wrap">
+    <table class="fg-table">
+      <caption>1. Regulatory Compliance</caption>
+      <thead><tr><th>Item</th><th>SAP Activity</th><th>Non-SAP Activity</th></tr></thead>
+      <tbody>
+        <tr><td>SOX (ICFR)</td><td>GRC Process Control — control matrix mapped to financial statement assertions; automated control testing tied to ICFR scope</td><td>External auditor walkthroughs, SOX narratives/flowcharts (Visio), management certification process</td></tr>
+        <tr><td>Industry-specific mandates</td><td>Data protection config (SAP Information Lifecycle Management, field-level masking), industry-specific compliance add-ons</td><td>Legal/compliance policy manuals, DPO reviews, regulator filings</td></tr>
+        <tr><td>External audit readiness</td><td>Audit Information System (AIS) extracts, GRC Process Control evidence repository</td><td>PBC request lists, audit fieldwork coordination, external audit engagement letters</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fg-table-wrap">
+    <table class="fg-table">
+      <caption>2. Fraud Prevention &amp; Detection</caption>
+      <thead><tr><th>Item</th><th>SAP Activity</th><th>Non-SAP Activity</th></tr></thead>
+      <tbody>
+        <tr><td>Segregation of Duties (SoD)</td><td>GRC Access Control — SoD ruleset, risk analysis (SUIM, risk violation reports), role redesign (PFCG)</td><td>Manual SoD matrix for non-system tasks, compensating manual reviews where system SoD can't be enforced</td></tr>
+        <tr><td>Sensitive access controls</td><td>Critical/sensitive access ruleset in GRC AC, firefighter/emergency access (GRC Superuser Privilege Management), transaction restriction (SU24/SU25)</td><td>Privileged access management (PAM) tools for OS/DB layer, IT security policy on elevated access</td></tr>
+        <tr><td>Detective controls</td><td>GRC Process Control — Continuous Controls Monitoring (CCM) jobs, automated exception reports</td><td>Internal audit continuous auditing programs, whistleblower trend review</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fg-table-wrap">
+    <table class="fg-table">
+      <caption>3. Financial Statement Integrity</caption>
+      <thead><tr><th>Item</th><th>SAP Activity</th><th>Non-SAP Activity</th></tr></thead>
+      <tbody>
+        <tr><td>Accuracy, completeness, validity of postings</td><td>Automated posting validations, tolerance groups, three-way match (MM)</td><td>Manual journal entry review, account reconciliation policy</td></tr>
+        <tr><td>Authorization hierarchies</td><td>Release strategies (ME29N), workflow-based approval routing (SAP Business Workflow)</td><td>Delegation of authority (DOA) matrix, board-approved spending limits</td></tr>
+        <tr><td>Cutoff, valuation, reconciliation</td><td>Period-end close cockpit, automated GL reconciliation reports</td><td>Balance sheet substantiation, controller sign-off checklist</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fg-table-wrap">
+    <table class="fg-table">
+      <caption>4. Operational Risk Management</caption>
+      <thead><tr><th>Item</th><th>SAP Activity</th><th>Non-SAP Activity</th></tr></thead>
+      <tbody>
+        <tr><td>Protecting against unauthorized/erroneous transactions</td><td>Input validation, workflow approval gates, authorization objects</td><td>Standard operating procedures (SOPs), staff training programs</td></tr>
+        <tr><td>Business continuity</td><td>Change control via Transport Management System (STMS), regression testing before go-live</td><td>Business continuity/disaster recovery (BCDR) plans, incident response playbooks</td></tr>
+        <tr><td>Master data integrity</td><td>Master Data Governance (MDG), duplicate-check config, field validation rules</td><td>Data stewardship policy, periodic master data cleansing reviews</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fg-table-wrap">
+    <table class="fg-table">
+      <caption>5. IT General Controls (ITGCs)</caption>
+      <thead><tr><th>Item</th><th>SAP Activity</th><th>Non-SAP Activity</th></tr></thead>
+      <tbody>
+        <tr><td>Change management</td><td>STMS transport landscape (DEV→QA→PROD), change documentation in Solution Manager/ChaRM</td><td>Change Advisory Board (CAB) approval, change request tickets (ServiceNow)</td></tr>
+        <tr><td>Access management</td><td>GRC Access Control — user provisioning workflow, User Access Review (UAR) campaigns</td><td>HR-driven joiner/mover/leaver process, IT security access policy</td></tr>
+        <tr><td>Computer operations</td><td>SAP job scheduling (SM36/SM37), background job monitoring</td><td>IT operations runbooks, backup/DR testing schedules</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fg-table-wrap">
+    <table class="fg-table">
+      <caption>6. Accountability &amp; Traceability</caption>
+      <thead><tr><th>Item</th><th>SAP Activity</th><th>Non-SAP Activity</th></tr></thead>
+      <tbody>
+        <tr><td>Audit trails</td><td>Change document logging (CDHDR/CDPOS), table logging, Security Audit Log (SM19/SM20)</td><td>Physical access logs, sign-in/sign-out registers for non-system processes</td></tr>
+        <tr><td>Ownership of controls</td><td>Control ownership assignment in GRC Process Control org hierarchy</td><td>RACI matrices, control owner sign-off in governance documentation</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fg-table-wrap">
+    <table class="fg-table">
+      <caption>7. Stakeholder Confidence</caption>
+      <thead><tr><th>Item</th><th>SAP Activity</th><th>Non-SAP Activity</th></tr></thead>
+      <tbody>
+        <tr><td>Investor/board assurance</td><td>GRC dashboards/reporting for management attestation</td><td>Board governance reports, audit committee presentations</td></tr>
+        <tr><td>Reduced insurance/regulatory risk</td><td>Compliance reporting used to support cyber/D&amp;O insurance underwriting</td><td>Insurance renewal documentation, regulatory correspondence file</td></tr>
+        <tr><td>Reputational protection</td><td>Incident/breach logging within SAP security tools</td><td>Crisis communications plan, PR/legal incident response protocol</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fg-markread">
+    <button id="mark-read-btn">Mark as Read</button>
+  </div>
+</div>
+
+<script>
+(async function () {
+  const btn = document.getElementById('mark-read-btn');
+  async function refreshReadState() {
+    if (!window.__sccSb || !window.__sccUserEmail) return;
+    const { data } = await window.__sccSb
+      .from('sapexec_scc_progress')
+      .select('module_id')
+      .eq('email', window.__sccUserEmail)
+      .eq('module_id', 'b0');
+    if (data && data.length) {
+      btn.textContent = '\u2713 Read';
+      btn.disabled = true;
+    }
+  }
+  btn.addEventListener('click', async function () {
+    try {
+      if (window.__sccSb && window.__sccUserEmail) {
+        await window.__sccSb.from('sapexec_scc_progress').upsert(
+          { email: window.__sccUserEmail, module_id: 'b0' },
+          { onConflict: 'email,module_id' }
+        );
+      }
+    } catch (e) {
+      console.warn('sapexec_scc_progress sync failed', e);
+    }
+    btn.textContent = '\u2713 Read';
+    btn.disabled = true;
+  });
+  // Give the session guard a moment to set window.__sccSb / __ctmUserEmail
+  setTimeout(refreshReadState, 400);
+})();
+</script>
+
+</body>
+</html>

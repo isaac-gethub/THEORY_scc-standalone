@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="scc-auth-guard.js"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B5 — Engagement Types | SAP Controls &amp; Compliance | TIB Systems Inc.</title>
+  <link rel="stylesheet" href="design-system.css" />
+  <style>
+    .hamburger{display:none;flex-direction:column;gap:5px;background:transparent;border:none;cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);flex-shrink:0;}
+    .hamburger span{display:block;width:22px;height:2px;background:rgba(255,255,255,0.80);border-radius:2px;transition:all var(--transition-base);}
+    @media(max-width:900px){.hamburger{display:flex;}.lms-header__divider{display:none;}}
+    .sidebar-backdrop{display:none;position:fixed;inset:0;top:var(--header-height);background:var(--bg-overlay);z-index:calc(var(--z-overlay) - 1);}
+    .sidebar-backdrop.active{display:block;}
+    .module-body h2{font-family:var(--font-display);font-size:var(--scale-2xl);color:var(--text-primary);letter-spacing:var(--tracking-tight);line-height:var(--leading-tight);margin-bottom:var(--space-4);margin-top:var(--space-10);}
+    .module-body h2:first-child{margin-top:0;}
+    .module-body h3{font-size:var(--scale-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);margin-top:var(--space-6);}
+    .module-body p{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);max-width:68ch;}
+    .module-body strong{color:var(--text-primary);font-weight:600;}
+    .module-body em{font-style:italic;color:var(--teal);}
+
+    /* Career path seniority visual */
+    .seniority-map{background:var(--navy);border-radius:var(--radius-2xl);padding:var(--space-6);margin-bottom:var(--space-6);overflow-x:auto;}
+    .seniority-map__title{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:rgba(255,255,255,0.40);margin-bottom:var(--space-4);}
+    .seniority-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);}
+    .seniority-col{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-xl);padding:var(--space-4);}
+    .seniority-col__level{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-2);}
+    .seniority-col__title{font-size:var(--scale-sm);font-weight:700;color:var(--white);margin-bottom:var(--space-3);}
+    .seniority-col__types{display:flex;flex-direction:column;gap:var(--space-1);}
+    .seniority-type-tag{font-size:var(--scale-2xs);padding:3px 8px;border-radius:var(--radius-pill);text-align:center;}
+
+    /* Spectrum slider visual */
+    .spectrum-bar{background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-2xl);padding:var(--space-5);margin:var(--space-5) 0;box-shadow:var(--shadow-sm);}
+    .spectrum-bar__label{font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-3);}
+    .spectrum-bar__track{position:relative;height:8px;background:linear-gradient(90deg,var(--teal) 0%,var(--navy) 50%,var(--amber) 100%);border-radius:var(--radius-pill);margin-bottom:var(--space-5);}
+    .spectrum-bar__labels{display:flex;justify-content:space-between;font-size:var(--scale-xs);color:var(--text-muted);}
+    .spectrum-bar__cols{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin-top:var(--space-4);}
+    .spectrum-col__title{font-size:var(--scale-sm);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-2);}
+    .spectrum-col__items{font-size:var(--scale-xs);color:var(--text-secondary);line-height:1.6;}
+
+    /* Engagement type card */
+    .etype-card{background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-2xl);overflow:hidden;box-shadow:var(--shadow-sm);margin:var(--space-5) 0;}
+    .etype-card__header{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--grey-100);}
+    .etype-card__num{width:36px;height:36px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:var(--scale-sm);font-weight:700;color:var(--white);flex-shrink:0;}
+    .etype-card__title{font-size:var(--scale-md);font-weight:700;color:var(--text-primary);flex:1;}
+    .etype-card__badge{flex-shrink:0;}
+    .etype-card__body{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+    .etype-card__narrative{padding:var(--space-5);font-size:var(--scale-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);border-right:1px solid var(--grey-100);}
+    .etype-card__meta{padding:var(--space-5);background:var(--grey-50);}
+    .etype-meta-row{display:flex;gap:var(--space-3);margin-bottom:var(--space-3);}
+    .etype-meta-row:last-child{margin-bottom:0;}
+    .etype-meta-label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);width:90px;flex-shrink:0;padding-top:2px;}
+    .etype-meta-value{font-size:var(--scale-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);}
+
+    /* Controls-security integration callout */
+    .integration-callout{background:var(--navy);border:1px solid rgba(31,122,140,0.30);border-left:4px solid var(--teal);border-radius:var(--radius-xl);padding:var(--space-5);margin:var(--space-5) 0;}
+    .integration-callout__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--teal-light);margin-bottom:var(--space-3);}
+    .integration-callout__body{font-size:var(--scale-sm);color:rgba(255,255,255,0.65);line-height:var(--leading-relaxed);}
+
+    /* Stakeholder map table */
+    .stk-table{width:100%;border-collapse:separate;border-spacing:0;border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);font-size:var(--scale-sm);margin:var(--space-5) 0 var(--space-8);}
+    .stk-table thead tr th:first-child{background:var(--navy-deep);color:var(--white);}
+    .stk-table thead tr th:nth-child(2){background:var(--teal);color:var(--white);}
+    .stk-table thead tr th:nth-child(3){background:var(--navy);color:var(--white);}
+    .stk-table thead tr th:nth-child(4){background:var(--amber);color:var(--white);}
+    .stk-table th{padding:var(--space-3) var(--space-4);text-align:left;font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;}
+    .stk-table tbody tr:nth-child(even){background:var(--grey-50);}
+    .stk-table tbody td{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--grey-100);vertical-align:top;color:var(--text-secondary);line-height:var(--leading-relaxed);}
+    .stk-table tbody td:first-child{font-weight:700;color:var(--text-primary);}
+    .stk-table tbody tr:last-child td{border-bottom:none;}
+
+    .ring-svg{transform:rotate(-90deg);}
+    .ring-bg{fill:none;stroke:var(--grey-100);stroke-width:3;}
+    .ring-fill{fill:none;stroke:var(--teal);stroke-width:3;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 600ms ease;}
+    .confetti-piece{position:absolute;border-radius:2px;animation:confettiFall linear forwards;}
+
+    @media(max-width:900px){
+      .lms-sidebar{position:fixed;left:0;top:var(--header-height);bottom:0;z-index:var(--z-overlay);transform:translateX(-100%);transition:transform var(--transition-slow);}
+      .lms-sidebar.open{transform:translateX(0);box-shadow:var(--shadow-xl);}
+      .lms-content{padding:var(--space-6) var(--space-5) var(--space-16);}
+      .module-hero{padding:var(--space-8) var(--space-5);}
+      .seniority-grid{grid-template-columns:repeat(2,1fr);}
+      .etype-card__body{grid-template-columns:1fr;}
+      .etype-card__narrative{border-right:none;border-bottom:1px solid var(--grey-100);}
+      .spectrum-bar__cols{grid-template-columns:1fr;}
+    }
+    @media(max-width:600px){.module-nav-footer__context{display:none;}.seniority-grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+<div class="lms-app" id="app">
+
+  <header class="lms-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    <a href="../index.html" class="lms-header__logo">
+      <div class="lms-header__logo-mark">T</div>
+      <div class="lms-header__brand"><span class="lms-header__brand-name">TIB Systems</span><span class="lms-header__brand-sub">Powered by TIB Systems Inc.</span></div>
+    </a>
+    <div class="lms-header__divider"></div>
+    <div class="lms-header__prog"><div class="lms-header__prog-name">SAP Controls &amp; Compliance Training Programme</div><div class="lms-header__prog-sub">10-Module Practitioner Path</div></div>
+    <div class="lms-header__actions">
+      <a href="../index.html" class="btn btn-ghost btn--sm" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.70);font-size:var(--scale-xs);">← All Modules</a>
+      <div class="badge badge--teal" id="header-status-badge">In Progress</div>
+    </div>
+  </header>
+
+  <div class="lms-body">
+    <aside class="lms-sidebar" id="sidebar">
+      <div class="lms-sidebar__section-label">Foundation</div>
+      <button class="lms-nav-item" data-module="B1" onclick="window.location.href='b1.html'"><div class="lms-nav-item__icon">B1</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Risk Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B2" onclick="window.location.href='b2.html'"><div class="lms-nav-item__icon">B2</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B3" onclick="window.location.href='b3.html'"><div class="lms-nav-item__icon">B3</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Nature</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B4" onclick="window.location.href='b4.html'"><div class="lms-nav-item__icon">B4</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Why Controls Matter</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Applied</div>
+      <button class="lms-nav-item active" data-module="B5"><div class="lms-nav-item__icon">B5</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Engagement Types</div><div class="lms-nav-item__subtitle">Current module</div></div><div class="lms-nav-item__badge"></div></button>
+      <button class="lms-nav-item" data-module="B6" onclick="window.location.href='b6.html'"><div class="lms-nav-item__icon">B6</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">S/4HANA Lifecycle</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item" data-module="B7" onclick="window.location.href='b7.html'"><div class="lms-nav-item__icon">B7</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Reading FD Documents</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Advanced</div>
+      <button class="lms-nav-item" data-module="B8" onclick="window.location.href='b8.html'"><div class="lms-nav-item__icon">B8</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Testing Phase</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <button class="lms-nav-item" data-module="B9" onclick="window.location.href='b9.html'"><div class="lms-nav-item__icon">B9</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">AI in Controls</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Capstone</div>
+      <button class="lms-nav-item" data-module="B10" onclick="window.location.href='b10.html'"><div class="lms-nav-item__icon">B10</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Practitioner Capstone</div><div class="lms-nav-item__subtitle">Capstone</div></div></button>
+      <div style="margin-top:auto;padding:var(--space-5);border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:var(--scale-2xs);color:rgba(255,255,255,0.30);letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-2);">Programme Progress</div>
+        <div class="progress-bar" style="height:5px;background:rgba(255,255,255,0.10);"><div class="progress-bar__fill" id="sidebar-prog-fill" style="width:0%;"></div></div>
+        <div style="font-family:var(--font-mono);font-size:var(--scale-2xs);color:rgba(255,255,255,0.35);margin-top:var(--space-2);" id="sidebar-prog-text">0 / 10 complete</div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+    <main class="lms-main" id="main-scroll">
+      <div class="module-progress-strip">
+        <span class="module-progress-strip__label">Module Progress</span>
+        <div class="module-progress-strip__bar"><div class="progress-bar"><div class="progress-bar__fill" id="mod-prog-bar" style="width:10%;"></div></div></div>
+        <span class="module-progress-strip__pct" id="mod-prog-pct">10%</span>
+      </div>
+
+      <div class="module-hero">
+        <div class="module-hero__inner">
+          <div class="module-hero__eyebrow"><span class="module-hero__code">B5</span><span class="module-hero__prog-label">SAP Controls &amp; Compliance Training Programme</span></div>
+          <h1 class="module-hero__title"><em>Engagement Types</em> — Where You Fit In</h1>
+          <p class="module-hero__desc">Understand the four contexts you will work in as a controls practitioner — Assessment, Transformation, Testing, and Remediation — and learn to navigate the degree-of-engagement spectrum from light-touch advisory to fully hands-on delivery.</p>
+          <div class="module-hero__meta">
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="module-hero__meta-text">10–12 min · 3 sections</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span class="module-hero__meta-text">4 engagement types · 5-question quiz · AI Tutor</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="module-hero__meta-text" id="hero-status">In progress</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lms-content">
+
+        <div class="learning-objectives animate-fade-in">
+          <div class="learning-objectives__header">
+            <div class="icon-circle icon-circle--md icon-circle--navy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <span class="learning-objectives__title">Learning Objectives</span>
+          </div>
+          <div class="learning-objectives__list">
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>describe the degree-of-engagement spectrum</strong> and explain how your scope, deliverables, and key stakeholder relationships change as you move from advisory to fully hands-on.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>identify all four primary engagement types</strong> — Assessment, S/4HANA Transformation, Controls Testing, and Remediation — and describe the scope, deliverables, and key relationships for each.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>explain the controls-security integration point</strong> — why SoD conflicts are simultaneously a security issue and a financial risk, and why the two workstreams must coordinate.</span></div>
+          </div>
+        </div>
+
+        <div class="tabs animate-fade-in">
+          <div class="tabs__nav" role="tablist">
+            <button class="tab-btn active" role="tab" data-tab="content"  onclick="switchTab(this,'content')">📖 Content</button>
+            <button class="tab-btn"        role="tab" data-tab="concepts" onclick="switchTab(this,'concepts')">🗂 Key Concepts</button>
+            <button class="tab-btn"        role="tab" data-tab="quiz"     onclick="switchTab(this,'quiz')">✏️ Knowledge Check</button>
+            <button class="tab-btn"        role="tab" data-tab="tutor"    onclick="switchTab(this,'tutor')">🤖 AI Tutor</button>
+          </div>
+
+          <!-- TAB: CONTENT -->
+          <div class="tab-panel active" id="tab-content">
+            <div class="module-body">
+
+              <!-- Career path seniority visual -->
+              <div class="seniority-map">
+                <div class="seniority-map__title">📌 Career-Path Reference — Engagement Types by Seniority</div>
+                <div class="seniority-grid">
+                  <div class="seniority-col">
+                    <div class="seniority-col__level" style="color:rgba(31,122,140,0.80);">Analyst</div>
+                    <div class="seniority-col__title">Learning the Types</div>
+                    <div class="seniority-col__types">
+                      <div class="seniority-type-tag" style="background:rgba(31,122,140,0.20);color:rgba(155,215,230,0.90);">Testing (executing)</div>
+                      <div class="seniority-type-tag" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.40);">Assessment (supporting)</div>
+                    </div>
+                  </div>
+                  <div class="seniority-col">
+                    <div class="seniority-col__level" style="color:rgba(31,122,140,0.90);">Consultant</div>
+                    <div class="seniority-col__title">Owning Workstreams</div>
+                    <div class="seniority-col__types">
+                      <div class="seniority-type-tag" style="background:rgba(31,122,140,0.25);color:rgba(155,215,230,0.90);">Transformation (design)</div>
+                      <div class="seniority-type-tag" style="background:rgba(31,122,140,0.20);color:rgba(155,215,230,0.90);">Testing (leading)</div>
+                      <div class="seniority-type-tag" style="background:rgba(198,89,17,0.20);color:rgba(240,160,112,0.90);">Remediation (executing)</div>
+                    </div>
+                  </div>
+                  <div class="seniority-col">
+                    <div class="seniority-col__level" style="color:rgba(255,255,255,0.70);">Manager</div>
+                    <div class="seniority-col__title">Managing Delivery</div>
+                    <div class="seniority-col__types">
+                      <div class="seniority-type-tag" style="background:rgba(31,56,100,0.40);color:rgba(155,215,230,0.90);">Transformation (all phases)</div>
+                      <div class="seniority-type-tag" style="background:rgba(198,89,17,0.25);color:rgba(240,160,112,0.90);">Remediation (managing)</div>
+                      <div class="seniority-type-tag" style="background:rgba(31,122,140,0.20);color:rgba(155,215,230,0.90);">Assessment (leading)</div>
+                    </div>
+                  </div>
+                  <div class="seniority-col">
+                    <div class="seniority-col__level" style="color:rgba(198,89,17,0.90);">Director</div>
+                    <div class="seniority-col__title">All Types</div>
+                    <div class="seniority-col__types">
+                      <div class="seniority-type-tag" style="background:rgba(198,89,17,0.25);color:rgba(240,160,112,0.90);">All four types</div>
+                      <div class="seniority-type-tag" style="background:rgba(198,89,17,0.15);color:rgba(240,160,112,0.70);">Advisory emphasis</div>
+                      <div class="seniority-type-tag" style="background:rgba(198,89,17,0.15);color:rgba(240,160,112,0.70);">C-suite interface</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <h2 id="s1">Section 1 · The Degree-of-Engagement Spectrum</h2>
+
+              <p>The first question to answer on any engagement is: <em>how hands-on are we?</em> The source session describes a spectrum from <strong>light-touch advising</strong> at one end — assessing and recommending without directly designing or testing — through to <strong>fully embedded delivery</strong> at the other, where the controls team is deeply involved in design, validation, testing, and implementation across all phases.</p>
+
+              <!-- Spectrum visual -->
+              <div class="spectrum-bar">
+                <div class="spectrum-bar__label">Degree-of-Engagement Spectrum</div>
+                <div class="spectrum-bar__track"></div>
+                <div class="spectrum-bar__labels"><span>Advisory / Assess</span><span>Design & Validate</span><span>Test & Implement</span></div>
+                <div class="spectrum-bar__cols">
+                  <div>
+                    <div class="spectrum-col__title" style="color:var(--teal);">Advisory End</div>
+                    <div class="spectrum-col__items">• Assess client's controls environment<br>• Identify gaps and opportunities<br>• Provide recommendations<br>• Primary relationship: Internal Audit<br>• Deliverable: Assessment report</div>
+                  </div>
+                  <div>
+                    <div class="spectrum-col__title" style="color:var(--navy);">Design & Validate</div>
+                    <div class="spectrum-col__items">• Embedded from programme start<br>• Design controls and RCM<br>• Validate with business process owners<br>• Primary relationship: Programme mgr<br>• Deliverable: Validated RCM</div>
+                  </div>
+                  <div>
+                    <div class="spectrum-col__title" style="color:var(--amber);">Hands-On End</div>
+                    <div class="spectrum-col__items">• Test DEF and OEF<br>• Review system artefacts<br>• Confirm controls work as designed<br>• Primary relationship: Test manager<br>• Deliverable: Test results + evidence</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="callout callout--info"><div class="callout__icon">💡</div><div class="callout__body"><div class="callout__title">Why This Matters Before Day One</div><div class="callout__text">Understanding where you sit on the spectrum before an engagement begins shapes everything — what your client expects, what your team is accountable for, what success looks like, and which stakeholders you will spend most of your time with. Misaligned expectations on degree of engagement are one of the most common sources of client friction on large programmes.</div></div></div>
+
+              <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Section 2</div><div class="section-divider__line"></div></div>
+
+              <h2 id="s2">Section 2 · The Four Primary Engagement Types</h2>
+
+              <p>The source session identifies four primary engagement types. Each has a distinct scope, a distinct set of deliverables, and a distinct primary stakeholder relationship. Recognising which type you are on — and potentially which combination — is the first step to setting up the engagement for success.</p>
+
+              <!-- Engagement Type 1: Assessment -->
+              <div class="etype-card">
+                <div class="etype-card__header">
+                  <div class="etype-card__num" style="background:var(--teal);">1</div>
+                  <div class="etype-card__title">Assessment &amp; Recommendation</div>
+                  <span class="badge badge--teal">Advisory</span>
+                </div>
+                <div class="etype-card__body">
+                  <div class="etype-card__narrative">
+                    The practitioner reviews the client's current risk and controls environment — their existing framework, SAP configuration, process design — and provides an independent assessment of gaps and opportunities. The primary deliverable is a <strong>findings and recommendations report</strong>. This is valuable as a standalone engagement or as a scoping exercise before a larger programme.
+                  </div>
+                  <div class="etype-card__meta">
+                    <div class="etype-meta-row"><div class="etype-meta-label">Scope</div><div class="etype-meta-value">Current controls environment review</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Deliverable</div><div class="etype-meta-value">Findings and recommendations report</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Key Relationship</div><div class="etype-meta-value">Internal Audit / Compliance function</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Timing</div><div class="etype-meta-value">Standalone or pre-transformation scoping</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Engagement Type 2: Transformation -->
+              <div class="etype-card">
+                <div class="etype-card__header">
+                  <div class="etype-card__num" style="background:var(--navy);">2</div>
+                  <div class="etype-card__title">S/4HANA Transformation</div>
+                  <span class="badge badge--navy">Full Lifecycle</span>
+                </div>
+                <div class="etype-card__body">
+                  <div class="etype-card__narrative">
+                    The controls team is embedded from the beginning of the programme, working through all four phases: <strong>solution confirmation → design and build → testing → go-live</strong>. Activities shift in each phase: risk assessment and preliminary RCM drafting in solution confirmation; controls design and business validation in design and build; operating effectiveness testing in the testing phase. The primary deliverable — the <strong>Risk and Controls Matrix (RCM)</strong> — is progressively refined from a preliminary draft at solution confirmation to a fully validated, tested document by go-live.
+                  </div>
+                  <div class="etype-card__meta">
+                    <div class="etype-meta-row"><div class="etype-meta-label">Scope</div><div class="etype-meta-value">Full transformation lifecycle — all four phases</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Deliverable</div><div class="etype-meta-value">Progressively refined RCM: preliminary → validated → tested</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Key Relationship</div><div class="etype-meta-value">Programme manager · Functional leads · System integrator</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Timing</div><div class="etype-meta-value">Solution Confirmation → Design & Build → Testing → Go-Live</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Engagement Type 3: Testing -->
+              <div class="etype-card">
+                <div class="etype-card__header">
+                  <div class="etype-card__num" style="background:var(--amber);">3</div>
+                  <div class="etype-card__title">Controls Testing</div>
+                  <span class="badge badge--amber">DEF + OEF</span>
+                </div>
+                <div class="etype-card__body">
+                  <div class="etype-card__narrative">
+                    The client already has a controls framework in place. The controls workstream joins specifically to test whether controls are <strong>designed effectively (DEF)</strong> and <strong>operating effectively (OEF)</strong>. The key activity is working with the programme's testing team to identify which test scripts are relevant from a controls perspective, then reviewing system testing results to confirm controls work as designed. This is common during SIT and UAT phases.
+                  </div>
+                  <div class="etype-card__meta">
+                    <div class="etype-meta-row"><div class="etype-meta-label">Scope</div><div class="etype-meta-value">Existing controls framework — test DEF and OEF</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Deliverable</div><div class="etype-meta-value">Test results · Evidence packages · Gap findings</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Key Relationship</div><div class="etype-meta-value">Testing lead · Programme test manager</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Timing</div><div class="etype-meta-value">System integration testing (SIT) · UAT phase</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Engagement Type 4: Remediation -->
+              <div class="etype-card">
+                <div class="etype-card__header">
+                  <div class="etype-card__num" style="background:var(--color-error);">4</div>
+                  <div class="etype-card__title">Remediation</div>
+                  <span class="badge" style="background:var(--color-error-light);color:var(--color-error);border:1px solid rgba(198,42,31,0.20);">Time-Sensitive</span>
+                </div>
+                <div class="etype-card__body">
+                  <div class="etype-card__narrative">
+                    <strong>Time is of essence.</strong> Clients who have received significant deficiency or material weakness findings from their external auditor need the controls team to overhaul the affected areas before the next audit cycle. The scope is defined by the findings. The practitioner is working against a deadline, with documented audit findings that define exactly what must be addressed — and a hard stop at the next external audit.
+                  </div>
+                  <div class="etype-card__meta">
+                    <div class="etype-meta-row"><div class="etype-meta-label">Scope</div><div class="etype-meta-value">Deficiency / material weakness areas from external auditor</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Deliverable</div><div class="etype-meta-value">Remediated controls · Re-test evidence · Audit-ready packages</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Key Relationship</div><div class="etype-meta-value">External auditor · CFO · Audit committee</div></div>
+                    <div class="etype-meta-row"><div class="etype-meta-label">Timing</div><div class="etype-meta-value">Post-audit-finding — before the next audit cycle</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Section 3</div><div class="section-divider__line"></div></div>
+
+              <h2 id="s3">Section 3 · Stakeholders, Integration &amp; The Practitioner's Frame</h2>
+
+              <p>Understanding your engagement type does more than clarify your scope — it tells you who your most important stakeholder is. In an assessment engagement, it is Internal Audit or the Compliance function. In a transformation engagement, it is the programme manager and the functional leads. In a testing engagement, it is the test manager. In a remediation engagement, it is the external auditor and the CFO.</p>
+
+              <!-- Controls-security integration callout -->
+              <div class="integration-callout">
+                <div class="integration-callout__label">⚠️ Field Insight — Controls-Security Integration Point</div>
+                <div class="integration-callout__body">
+                  The source session explicitly flags this: practitioners should connect the dots between how security roles are designed and how those roles affect the risk and controls framework. A role that creates a SoD conflict is not just a security issue — it is a financial risk. A control that relies on restricted system access must be coordinated with the security team. The security workstream designs SAP user roles and authorisation objects. The controls workstream identifies SoD conflicts in that role design and maps them to the financial risk framework. These two workstreams are not independent — failure to coordinate them is one of the most common delivery failures on large S/4HANA programmes.
+                </div>
+              </div>
+
+              <!-- Stakeholder map table -->
+              <h3>Stakeholder Map by Engagement Type</h3>
+              <div style="overflow-x:auto;">
+                <table class="stk-table">
+                  <thead>
+                    <tr>
+                      <th>Dimension</th>
+                      <th>Assessment</th>
+                      <th>Transformation</th>
+                      <th>Remediation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Primary Relationship</td><td>Internal Audit / Compliance</td><td>Programme mgr · Func leads · SI</td><td>External auditor · CFO</td></tr>
+                    <tr><td>Key Deliverable</td><td>Assessment report</td><td>Validated RCM</td><td>Audit-ready evidence packages</td></tr>
+                    <tr><td>Mode</td><td>Advisory — assess and recommend</td><td>Embedded — design through go-live</td><td>Urgency — deadline-driven</td></tr>
+                    <tr><td>Success Defined By</td><td>Quality and actionability of recommendations</td><td>Compliant on day one — RCM tested by go-live</td><td>Findings addressed before next audit cycle</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="callout callout--success"><div class="callout__icon">✅</div><div class="callout__body"><div class="callout__title">All Three Sections Complete</div><div class="callout__text">You have reviewed all content for Module B5. Proceed to <strong>Key Concepts</strong> for a structured recall review, or go directly to the <strong>Knowledge Check</strong>. A passing score of 60% marks this module complete and unlocks Module B6.</div></div></div>
+
+            </div>
+          </div><!-- /tab-content -->
+
+          <!-- TAB: KEY CONCEPTS -->
+          <div class="tab-panel" id="tab-concepts">
+
+            <!-- Career path seniority visual in concepts tab too -->
+            <div class="seniority-map" style="margin-bottom:var(--space-6);">
+              <div class="seniority-map__title">📌 Career-Path Reference — Engagement Types by Seniority</div>
+              <div class="seniority-grid">
+                <div class="seniority-col"><div class="seniority-col__level" style="color:rgba(31,122,140,0.80);">Analyst</div><div class="seniority-col__title">Learning the Types</div><div class="seniority-col__types"><div class="seniority-type-tag" style="background:rgba(31,122,140,0.20);color:rgba(155,215,230,0.90);">Testing (executing)</div><div class="seniority-type-tag" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.40);">Assessment (supporting)</div></div></div>
+                <div class="seniority-col"><div class="seniority-col__level" style="color:rgba(31,122,140,0.90);">Consultant</div><div class="seniority-col__title">Owning Workstreams</div><div class="seniority-col__types"><div class="seniority-type-tag" style="background:rgba(31,122,140,0.25);color:rgba(155,215,230,0.90);">Transformation (design)</div><div class="seniority-type-tag" style="background:rgba(31,122,140,0.20);color:rgba(155,215,230,0.90);">Testing (leading)</div><div class="seniority-type-tag" style="background:rgba(198,89,17,0.20);color:rgba(240,160,112,0.90);">Remediation (executing)</div></div></div>
+                <div class="seniority-col"><div class="seniority-col__level" style="color:rgba(255,255,255,0.70);">Manager</div><div class="seniority-col__title">Managing Delivery</div><div class="seniority-col__types"><div class="seniority-type-tag" style="background:rgba(31,56,100,0.40);color:rgba(155,215,230,0.90);">Transformation (all phases)</div><div class="seniority-type-tag" style="background:rgba(198,89,17,0.25);color:rgba(240,160,112,0.90);">Remediation (managing)</div><div class="seniority-type-tag" style="background:rgba(31,122,140,0.20);color:rgba(155,215,230,0.90);">Assessment (leading)</div></div></div>
+                <div class="seniority-col"><div class="seniority-col__level" style="color:rgba(198,89,17,0.90);">Director</div><div class="seniority-col__title">All Types</div><div class="seniority-col__types"><div class="seniority-type-tag" style="background:rgba(198,89,17,0.25);color:rgba(240,160,112,0.90);">All four types</div><div class="seniority-type-tag" style="background:rgba(198,89,17,0.15);color:rgba(240,160,112,0.70);">Advisory emphasis</div><div class="seniority-type-tag" style="background:rgba(198,89,17,0.15);color:rgba(240,160,112,0.70);">C-suite interface</div></div></div>
+              </div>
+            </div>
+
+            <div style="font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-4);">The Four Engagement Types — Summary</div>
+            <div class="grid-2" style="margin-bottom:var(--space-6);">
+              <div class="concept-card"><div class="concept-card__accent"></div><div class="concept-card__body"><div class="concept-card__label">Type 01</div><div class="concept-card__title">Assessment &amp; Recommendation</div><div class="concept-card__body-text">Review current state, identify gaps, recommend improvements. Deliverable: findings report. Key relationship: Internal Audit. Advisory mode — no direct design or testing.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--navy"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--navy">Type 02</div><div class="concept-card__title">S/4HANA Transformation</div><div class="concept-card__body-text">Embedded from start. Four phases: solution confirmation → design and build → testing → go-live. Deliverable: progressively refined RCM. Key relationship: programme manager / functional leads / SI.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--amber"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--amber">Type 03</div><div class="concept-card__title">Controls Testing</div><div class="concept-card__body-text">Client has controls framework — test DEF and OEF. Work with testing team to identify control-relevant test scripts. Deliverable: test results and evidence. Key relationship: test manager.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent" style="background:var(--color-error);"></div><div class="concept-card__body"><div class="concept-card__label" style="color:var(--color-error);">Type 04</div><div class="concept-card__title">Remediation</div><div class="concept-card__body-text">Time-sensitive. Scope defined by external auditor findings. Overhaul affected areas before next audit cycle. Deliverable: audit-ready remediation evidence. Key relationship: external auditor / CFO.</div></div></div>
+            </div>
+
+            <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Key Definitions</div><div class="section-divider__line"></div></div>
+
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Degree of Engagement</span></div><div class="key-term__definition">The spectrum from light-touch advisory (assess and recommend only) to fully embedded hands-on delivery (design, validate, test, implement). Determines scope, deliverables, and primary stakeholder relationships. Must be agreed before the engagement begins to avoid client misalignment.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Design Effectiveness (DEF)</span></div><div class="key-term__definition">A test conclusion that confirms a control is suitably designed to mitigate the identified risk — the right control is in place for the right risk. DEF testing happens before operating effectiveness testing and is a prerequisite for OEF reliance. A control that fails DEF cannot be relied upon for OEF.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Operating Effectiveness (OEF)</span></div><div class="key-term__definition">A test conclusion that confirms a control has been operating as designed throughout the test period — not just that it is in place. OEF testing requires evidence that the control was performed consistently, completely, and by a competent person (for ITDMs and manual controls) or that the system enforced it on every transaction (for automated controls).</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Risk and Controls Matrix (RCM)</span></div><div class="key-term__definition">The primary deliverable of a controls workstream. Each row maps a risk to its category, inherent rating, control, test procedure, and residual rating. In a transformation engagement, the RCM begins as a preliminary draft at solution confirmation and is progressively refined — with business validation, design updates, and test results added — through to go-live.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Controls-Security Integration</span></div><div class="key-term__definition">The coordination required between the controls workstream and the security and roles design workstream. SoD conflicts are simultaneously a security issue (role design) and a financial risk (controls framework). The two workstreams must align on role design, access decisions, and SoD conflict remediation to avoid gaps and contradictions in the final go-live environment.</div></div>
+          </div><!-- /tab-concepts -->
+
+          <!-- TAB: QUIZ -->
+          <div class="tab-panel" id="tab-quiz">
+            <div class="quiz-block">
+              <div class="quiz-block__header"><div class="quiz-block__icon">✏️</div><div class="quiz-block__title">Knowledge Check — B5 Engagement Types</div><div class="quiz-block__counter" id="quiz-counter">Q1 of 5</div></div>
+              <div class="quiz-block__body" id="quiz-body">
+                <div id="quiz-question-wrap">
+                  <div class="quiz-question" id="quiz-q-text">Loading…</div>
+                  <div class="quiz-options" id="quiz-options"></div>
+                  <div class="quiz-feedback" id="quiz-feedback"><div class="quiz-feedback__icon" id="quiz-fb-icon"></div><div class="quiz-feedback__text" id="quiz-fb-text"></div></div>
+                </div>
+                <div class="quiz-score-display hidden" id="quiz-score-screen">
+                  <div class="quiz-score-display__number" id="quiz-score-num">—</div>
+                  <div class="quiz-score-display__label">Your Score</div>
+                  <div style="margin-top:var(--space-4);font-size:var(--scale-sm);color:var(--text-secondary);max-width:40ch;margin-left:auto;margin-right:auto;" id="quiz-score-msg"></div>
+                  <div style="margin-top:var(--space-8);display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="restartQuiz()">Retake Quiz</button>
+                    <button class="btn btn-primary" onclick="switchTab(document.querySelector('[data-tab=tutor]'),'tutor')">Ask AI Tutor</button>
+                    <button class="btn btn-navy" id="next-mod-btn" onclick="window.location.href='b6.html'" style="display:none;">Next: B6 →</button>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-block__footer" id="quiz-footer">
+                <div style="font-size:var(--scale-xs);color:var(--text-muted);"><span id="quiz-score-track">Score: 0 / 0</span></div>
+                <div style="display:flex;gap:var(--space-3);">
+                  <button class="btn btn-ghost btn--sm" id="quiz-check-btn" onclick="checkAnswer()" disabled>Check Answer</button>
+                  <button class="btn btn-primary btn--sm hidden" id="quiz-next-btn" onclick="nextQuestion()">Next →</button>
+                </div>
+              </div>
+            </div>
+          </div><!-- /tab-quiz -->
+
+          <!-- TAB: AI TUTOR -->
+          <div class="tab-panel" id="tab-tutor">
+            <div class="ai-tutor">
+              <div class="ai-tutor__header">
+                <div class="ai-tutor__avatar">🤖</div>
+                <div class="ai-tutor__info"><div class="ai-tutor__name">TIB AI Tutor</div><div class="ai-tutor__status"><div class="ai-tutor__status-dot"></div>Ready — Module B5 context loaded</div></div>
+                <div class="ai-tutor__badge">Powered by Claude</div>
+              </div>
+              <div class="ai-tutor__messages" id="chat-messages">
+                <div class="chat-message chat-message--ai"><div class="chat-message__avatar">T</div><div class="chat-message__bubble">👋 Welcome to Module B5 — <strong>Engagement Types</strong>.<br><br>I have full context on this module: the four engagement types, the degree-of-engagement spectrum, DEF vs OEF testing, the controls-security integration point, and the stakeholder map by type. I can also help you figure out which engagement type a given scenario describes — just give me the details.</div></div>
+              </div>
+              <div class="ai-tutor__prompt-row">
+                <button class="prompt-chip" onclick="sendChip(this)">What are the four engagement types?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What is DEF vs OEF testing?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Transformation engagement — four phases</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Why does remediation feel different?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Controls vs security workstream</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What type of engagement am I on?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Give me a quiz hint</button>
+              </div>
+              <div class="ai-tutor__input-row">
+                <textarea class="ai-tutor__textarea" id="chat-input" placeholder="Ask anything about Module B5 — Engagement Types…" rows="1" onkeydown="handleChatKey(event)" oninput="autoGrow(this)"></textarea>
+                <button class="ai-tutor__send" id="chat-send" onclick="sendChat()" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+              </div>
+            </div>
+          </div><!-- /tab-tutor -->
+
+        </div><!-- /tabs -->
+
+        <div class="completion-banner hidden" id="completion-banner">
+          <div class="completion-banner__confetti" id="confetti-wrap"></div>
+          <div class="completion-banner__inner">
+            <span class="completion-banner__icon">🎉</span>
+            <h2 class="completion-banner__title">Module B5 Complete!</h2>
+            <p class="completion-banner__subtitle">You have mastered the four engagement types — Assessment, Transformation, Testing, and Remediation. Module B6 is now unlocked.</p>
+            <div class="completion-banner__stats">
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-score">—</div><div class="completion-banner__stat-label">Quiz Score</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value">B5</div><div class="completion-banner__stat-label">Module</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-time">—</div><div class="completion-banner__stat-label">Time Spent</div></div>
+            </div>
+            <a href="b6.html" class="btn btn-primary btn--xl">Continue to B6 — S/4HANA Lifecycle →</a>
+          </div>
+        </div>
+
+      </div><!-- /lms-content -->
+
+      <footer class="module-nav-footer">
+        <div class="module-nav-footer__context">
+          <svg class="module-nav-footer__progress-ring ring-svg" viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="15.9"/><circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15.9"/></svg>
+          <div class="module-nav-footer__labels"><div class="module-nav-footer__module">Module B5 · Applied</div><div class="module-nav-footer__title">Engagement Types</div></div>
+        </div>
+        <div class="module-nav-footer__actions">
+          <a href="b4.html" class="btn btn-ghost btn--sm">← B4</a>
+          <button class="btn btn-ghost btn--sm" id="mark-complete-btn" onclick="markComplete()">Mark Complete</button>
+          <a href="b6.html" class="btn btn-navy btn--sm">Next: B6 →</a>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const CLAUDE_API_KEY='sk-ant-api03-6S-zY5EX14Ity0O8rV9tk12lMdtk1QVBuc0RbxmLWssAqcE5avVmWPL3F_K-IMe8whHE9YdA-zxF7NFUuA2b-w-cM';
+const LS_COMPLETE_KEY='tib_module_b5_complete';
+const LS_ALL_CODES=['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'];
+const MODULE_START_MS=Date.now();
+
+const QUIZ=[
+  {
+    q:"You have just joined a controls project. On day one, you are told: 'We have identified significant deficiency findings from last year's external audit, and our next audit cycle begins in four months. We need you to overhaul the affected process areas, re-test the controls, and produce an audit-ready evidence package.' Which engagement type are you on?",
+    opts:[
+      {t:"Assessment and Recommendation — reviewing the current controls environment and providing gap findings.",c:false},
+      {t:"S/4HANA Transformation — embedded delivery across all four programme phases.",c:false},
+      {t:"Remediation — time-sensitive engagement driven by external audit findings, with a hard deadline before the next audit cycle.",c:true},
+      {t:"Controls Testing — testing design effectiveness and operating effectiveness of an existing controls framework.",c:false}
+    ],
+    exp:"Correct. The defining characteristics of a remediation engagement are present: external audit findings define the scope, the deadline is the next audit cycle, and time is of essence. The primary deliverables are remediated controls, re-test evidence, and audit-ready packages. The key relationships are the external auditor and CFO. Options A and B describe different starting conditions. Option D describes a testing engagement — the client has controls in place to test; here the controls themselves have failed and must be overhauled."
+  },
+  {
+    q:"In an S/4HANA Transformation engagement, the Risk and Controls Matrix (RCM) is described as a 'progressively refined' deliverable. What does this mean in practice?",
+    opts:[
+      {t:"A new RCM is created from scratch at each phase of the programme, replacing the previous version.",c:false},
+      {t:"The RCM starts as a preliminary draft at solution confirmation, is updated and validated through design and build, and reaches its final tested state by go-live — reflecting increasing detail and certainty at each phase.",c:true},
+      {t:"The RCM is written once during the design and build phase and then distributed to all stakeholders for their approval.",c:false},
+      {t:"The RCM is progressively updated by the client's Internal Audit team, with the controls workstream reviewing and approving each version.",c:false}
+    ],
+    exp:"Correct. The transformation engagement's RCM is not created once — it evolves. At solution confirmation, it is a preliminary draft based on early-stage process understanding. Through design and build, controls are validated with business process owners and specifics are refined. During testing, the RCM is updated with test results and evidence. By go-live, it is a fully validated, tested document that reflects the organisation's actual controls environment. Option A is incorrect — the same RCM is refined, not replaced. Option C misses the iterative nature. Option D misidentifies who owns the RCM."
+  },
+  {
+    q:"A controls practitioner on a large SAP programme notices that the security team has designed several user roles that combine vendor master maintenance and payment run authorisation. The security lead says: 'This is a security design issue — the controls team can deal with it separately.' Is the security lead correct?",
+    opts:[
+      {t:"Yes — security role design and controls risk management are independent workstreams that should not interfere with each other.",c:false},
+      {t:"No — a role that creates a SoD conflict is simultaneously a security design issue and a financial risk. The two workstreams must coordinate, not operate independently.",c:true},
+      {t:"Yes — the controls team should document the SoD conflict in the RCM as a finding, but the security team is solely responsible for the role design.",c:false},
+      {t:"No — the controls team should take over the security role design to resolve the conflict directly.",c:false}
+    ],
+    exp:"Correct. The source session explicitly flags the controls-security integration point as one of the most common failure points on large S/4HANA programmes. A SoD conflict in a user role is simultaneously a security issue (role design) and a financial risk (controls framework). The two workstreams must coordinate — on role design decisions, access approvals, and SoD conflict remediation. Option A is incorrect — independence is the problem, not the solution. Option C describes documentation of a finding, not resolution of the coordination failure. Option D goes too far — the controls team does not take over security design; they coordinate with it."
+  },
+  {
+    q:"During the testing phase of an S/4HANA programme, the controls team is asked to work with the programme's testing lead to identify which test scripts are relevant from a controls perspective. What is the purpose of this activity?",
+    opts:[
+      {t:"To reduce the number of test scripts the testing team needs to execute, thereby saving programme time.",c:false},
+      {t:"To ensure that the controls the team has identified are actually tested in the system — so that only the controls-relevant test scenarios are reviewed for DEF and OEF evidence.",c:true},
+      {t:"To replace the testing team's standard test script library with a controls-specific test approach.",c:false},
+      {t:"To validate that the testing team has correctly understood the functional requirements documented in the KDDs.",c:false}
+    ],
+    exp:"Correct. The source session describes this precisely: the testing programme will test everything in the system; the controls team is only focused on the controls that have been identified and ensuring those are tested. The activity of working with the testing team to identify control-relevant test scripts is about making sure DEF and OEF evidence is captured for each control in the RCM — not about reducing scope or replacing the test approach. Option A misframes the objective. Option C mischaracterises what the controls team does with testing. Option D describes a different activity (requirements validation)."
+  },
+  {
+    q:"A senior manager describes your team's current engagement as: 'We are advising the client on their current-state risk and controls environment, identifying gaps, and making recommendations — but we are not directly designing or testing any controls.' Which engagement type and degree-of-engagement position best describes this?",
+    opts:[
+      {t:"S/4HANA Transformation engagement, at the design and build phase.",c:false},
+      {t:"Controls Testing engagement, at the operating effectiveness testing stage.",c:false},
+      {t:"Assessment and Recommendation engagement, at the advisory (light-touch) end of the degree-of-engagement spectrum.",c:true},
+      {t:"Remediation engagement, in the scoping and assessment phase before overhaul begins.",c:false}
+    ],
+    exp:"Correct. The description matches an Assessment and Recommendation engagement precisely: reviewing the current environment, identifying gaps, making recommendations — without direct design or testing involvement. This places the team at the advisory, light-touch end of the degree-of-engagement spectrum. The primary deliverable is a findings and recommendations report. The primary relationship is with Internal Audit or the Compliance function. Options A and B involve active design or testing work. Option D involves an audit-finding-driven scope and urgency not present in this description."
+  }
+];
+
+let QS={idx:0,sel:null,answered:false,score:0};
+function renderQuestion(){if(QS.idx>=QUIZ.length){showScoreScreen();return;}const q=QUIZ[QS.idx];document.getElementById('quiz-counter').textContent=`Q${QS.idx+1} of ${QUIZ.length}`;document.getElementById('quiz-q-text').textContent=q.q;const opts=document.getElementById('quiz-options');opts.innerHTML='';['A','B','C','D'].forEach((ltr,i)=>{const btn=document.createElement('button');btn.className='quiz-option';btn.innerHTML=`<div class="quiz-option__marker">${ltr}</div><div class="quiz-option__text">${q.opts[i].t}</div>`;btn.addEventListener('click',()=>selectOpt(i));opts.appendChild(btn);});document.getElementById('quiz-feedback').className='quiz-feedback';document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.add('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx}`;QS.sel=null;QS.answered=false;}
+function selectOpt(i){if(QS.answered)return;QS.sel=i;document.querySelectorAll('.quiz-option').forEach((b,j)=>b.classList.toggle('selected',j===i));document.getElementById('quiz-check-btn').disabled=false;}
+function checkAnswer(){if(QS.sel===null||QS.answered)return;QS.answered=true;const q=QUIZ[QS.idx];const correct=q.opts[QS.sel].c;if(correct)QS.score++;document.querySelectorAll('.quiz-option').forEach((btn,i)=>{btn.classList.add('disabled');if(q.opts[i].c)btn.classList.add('correct');else if(i===QS.sel&&!correct)btn.classList.add('incorrect');});const fb=document.getElementById('quiz-feedback');fb.className=`quiz-feedback visible quiz-feedback--${correct?'correct':'incorrect'}`;document.getElementById('quiz-fb-icon').textContent=correct?'✅':'❌';document.getElementById('quiz-fb-text').textContent=q.exp;document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.remove('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx+1}`;}
+function nextQuestion(){QS.idx++;if(QS.idx>=QUIZ.length)showScoreScreen();else renderQuestion();}
+function showScoreScreen(){const pct=Math.round((QS.score/QUIZ.length)*100);const msgs=[[80,'🌟 Excellent. You can identify any engagement type and its key characteristics. Ready for B6.'],[60,'👍 Good work — you passed. Review the explanations on any questions you missed.'],[0,'📖 Not quite yet. Re-read the content sections and retake — you have got this.']];const msg=msgs.find(m=>pct>=m[0]);document.getElementById('quiz-score-num').textContent=`${QS.score}/${QUIZ.length}`;document.getElementById('quiz-score-msg').textContent=msg[1];document.getElementById('quiz-question-wrap').classList.add('hidden');document.getElementById('quiz-score-screen').classList.remove('hidden');document.getElementById('quiz-footer').classList.add('hidden');document.getElementById('stat-score').textContent=`${pct}%`;if(pct>=60){document.getElementById('next-mod-btn').style.display='';setTimeout(()=>markComplete(pct),800);}}
+function restartQuiz(){QS={idx:0,sel:null,answered:false,score:0};document.getElementById('quiz-question-wrap').classList.remove('hidden');document.getElementById('quiz-score-screen').classList.add('hidden');document.getElementById('quiz-footer').classList.remove('hidden');renderQuestion();}
+
+function markComplete(score){localStorage.setItem(LS_COMPLETE_KEY,'true');(async function(){try{if(window.__sccSb&&window.__sccUserEmail){await window.__sccSb.from('sapexec_scc_progress').upsert({email:window.__sccUserEmail,module_id:'b5'},{onConflict:'email,module_id'});}}catch(e){console.warn('sapexec_scc_progress sync failed',e);}})();refreshSidebarProgress();const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);const mins=Math.max(1,Math.round((Date.now()-MODULE_START_MS)/60000));document.getElementById('stat-time').textContent=`${mins}m`;const banner=document.getElementById('completion-banner');if(banner){banner.classList.remove('hidden');setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'center'}),200);launchConfetti();}showToast('success','Module B5 Complete!','Engagement Types is marked complete. B6 is now unlocked.',4500);}
+function showAlreadyComplete(){const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);}
+function setProgress(pct){const bar=document.getElementById('mod-prog-bar');const txt=document.getElementById('mod-prog-pct');const ring=document.getElementById('ring-fill');if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=pct+'%';if(ring)ring.style.strokeDashoffset=100-pct;}
+function refreshSidebarProgress(){const done=LS_ALL_CODES.filter(c=>localStorage.getItem(`tib_module_${c.toLowerCase()}_complete`)==='true').length;const pct=Math.round((done/10)*100);const fill=document.getElementById('sidebar-prog-fill');const txt=document.getElementById('sidebar-prog-text');if(fill)fill.style.width=pct+'%';if(txt)txt.textContent=`${done} / 10 complete`;}
+const TAB_PROGRESS={content:25,concepts:55,quiz:80,tutor:92};
+function switchTab(btn,tabId){if(typeof btn==='string'){tabId=btn;btn=document.querySelector(`[data-tab="${tabId}"]`);}document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));if(btn)btn.classList.add('active');const panel=document.getElementById(`tab-${tabId}`);if(panel)panel.classList.add('active');if(localStorage.getItem(LS_COMPLETE_KEY)!=='true')setProgress(TAB_PROGRESS[tabId]||10);}
+document.getElementById('hamburger').addEventListener('click',()=>{const sb=document.getElementById('sidebar');const bd=document.getElementById('sidebar-backdrop');const open=sb.classList.toggle('open');bd.classList.toggle('active',open);});
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-backdrop').classList.remove('active');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+document.getElementById('main-scroll').addEventListener('scroll',function(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')return;const pct=Math.round((this.scrollTop/Math.max(1,this.scrollHeight-this.clientHeight))*100);setProgress(Math.min(pct,24));});
+function launchConfetti(){const wrap=document.getElementById('confetti-wrap');if(!wrap)return;wrap.innerHTML='';const cols=['1F7A8C','C65911','FFFFFF','5BB5C6','F0A070','1F3864','2AA860'];for(let i=0;i<60;i++){const el=document.createElement('div');el.className='confetti-piece';el.style.cssText=`left:${Math.random()*100}%;top:${-10-Math.random()*20}px;background:#${cols[Math.floor(Math.random()*cols.length)]};width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s;animation-delay:${Math.random()*0.8}s;`;wrap.appendChild(el);}}
+function showToast(type,title,msg,ms=4000){const icons={success:'✅',info:'ℹ️',warning:'⚠️',error:'❌'};const el=document.createElement('div');el.className=`toast toast--${type}`;el.innerHTML=`<div class="toast__icon">${icons[type]||'ℹ️'}</div><div><div class="toast__title">${title}</div><div class="toast__message">${msg}</div></div>`;document.getElementById('toasts').appendChild(el);setTimeout(()=>{el.style.cssText='opacity:0;transform:translateY(8px);transition:all 300ms ease;';setTimeout(()=>el.remove(),300);},ms);}
+
+const SYSTEM_PROMPT=`You are TIB AI Tutor — an expert SAP GRC and Internal Controls instructor for TIB Systems Inc.
+
+You are supporting Module B5: Engagement Types, from the SAP Controls & Compliance Training Programme.
+
+MODULE B5 CONTEXT:
+- Degree-of-engagement spectrum: advisory/assess (light-touch, recommend only) ↔ design & validate ↔ test & implement (fully embedded)
+- Four primary engagement types:
+  1. Assessment & Recommendation — review current state, identify gaps, recommend. Deliverable: findings report. Key relationship: Internal Audit / Compliance. Mode: advisory.
+  2. S/4HANA Transformation — embedded from start through four phases: solution confirmation → design and build → testing → go-live. Deliverable: progressively refined RCM. Key relationship: programme manager / functional leads / SI.
+  3. Controls Testing — test DEF (design effectiveness) and OEF (operating effectiveness). Work with testing team on control-relevant test scripts. Deliverable: test results + evidence. Key relationship: test manager.
+  4. Remediation — time-sensitive; scope defined by external auditor findings; deadline = next audit cycle. Deliverable: audit-ready remediation evidence. Key relationship: external auditor / CFO.
+- DEF = Design Effectiveness: control is suitably designed to mitigate the risk. OEF = Operating Effectiveness: control operated as designed throughout the test period.
+- RCM progression in transformation: preliminary draft (solution confirmation) → validated with business (design and build) → tested (testing phase) → final at go-live.
+- Controls-security integration point: SoD conflicts are simultaneously a security design issue (role matrix) and a financial risk (controls framework). Two workstreams must coordinate, not operate independently.
+- Additional engagement sub-types: ITTC assessment, tailored SMR support (manual JE, delegation of authority), integrated workstream delivery.
+- Stakeholder map: Assessment → Internal Audit; Transformation → programme mgr / func leads; Testing → test manager; Remediation → external auditor / CFO.
+- Career path: Analysts typically start on Testing and Assessment support; Consultants own Transformation design workstreams; Managers lead all types; Directors handle all four with advisory emphasis.
+
+TONE: Professional, clear, encouraging. 2-4 paragraphs. Quiz hints = conceptual nudge only. Can help identify engagement type from scenario description.`;
+
+let chatHistory=[];
+async function sendChat(){const input=document.getElementById('chat-input');const sendBtn=document.getElementById('chat-send');const text=input.value.trim();if(!text)return;appendMsg('user',text);chatHistory.push({role:'user',content:text});input.value='';autoGrow(input);sendBtn.disabled=true;const typingId=appendTyping();try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:chatHistory})});if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}const data=await res.json();const reply=(data.content||[]).map(b=>b.type==='text'?b.text:'').join('');removeTyping(typingId);appendMsg('ai',reply);chatHistory.push({role:'assistant',content:reply});}catch(err){removeTyping(typingId);appendMsg('ai',`⚠️ Connection error: ${err.message}`);}finally{sendBtn.disabled=false;}}
+function appendMsg(role,text){const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className=`chat-message chat-message--${role}`;const initial=role==='ai'?'T':'U';const html=role==='ai'?text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code style="font-family:var(--font-mono);font-size:0.9em;background:var(--grey-100);padding:1px 5px;border-radius:3px;">$1</code>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>'):text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML=`<div class="chat-message__avatar">${initial}</div><div class="chat-message__bubble">${html}</div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;}
+function appendTyping(){const id=`typing-${Date.now()}`;const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className='chat-message chat-message--ai';el.id=id;el.innerHTML=`<div class="chat-message__avatar">T</div><div class="chat-message__bubble"><div class="chat-message__typing"><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div></div></div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;return id;}
+function removeTyping(id){const el=document.getElementById(id);if(el)el.remove();}
+function sendChip(btn){document.getElementById('chat-input').value=btn.textContent.trim();autoGrow(document.getElementById('chat-input'));sendChat();}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+
+(function boot(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')showAlreadyComplete();LS_ALL_CODES.forEach(c=>{const key=`tib_module_${c.toLowerCase()}_complete`;const item=document.querySelector(`[data-module="${c}"]`);if(item&&localStorage.getItem(key)==='true'){item.classList.add('complete');const icon=item.querySelector('.lms-nav-item__icon');if(icon)icon.textContent='✓';}});refreshSidebarProgress();renderQuestion();})();
+window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('tib_module_')){refreshSidebarProgress();if(e.key===LS_COMPLETE_KEY&&e.newValue==='true')showAlreadyComplete();}});
+</script>
+</body>
+</html>

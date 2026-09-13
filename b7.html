@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="scc-auth-guard.js"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B7 — Reading FD Documents | SAP Controls &amp; Compliance | TIB Systems Inc.</title>
+  <link rel="stylesheet" href="design-system.css" />
+  <style>
+    .hamburger{display:none;flex-direction:column;gap:5px;background:transparent;border:none;cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);flex-shrink:0;}
+    .hamburger span{display:block;width:22px;height:2px;background:rgba(255,255,255,0.80);border-radius:2px;}
+    @media(max-width:900px){.hamburger{display:flex;}.lms-header__divider{display:none;}}
+    .sidebar-backdrop{display:none;position:fixed;inset:0;top:var(--header-height);background:var(--bg-overlay);z-index:calc(var(--z-overlay) - 1);}
+    .sidebar-backdrop.active{display:block;}
+    .module-body h2{font-family:var(--font-display);font-size:var(--scale-2xl);color:var(--text-primary);letter-spacing:var(--tracking-tight);line-height:var(--leading-tight);margin-bottom:var(--space-4);margin-top:var(--space-10);}
+    .module-body h2:first-child{margin-top:0;}
+    .module-body h3{font-size:var(--scale-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);margin-top:var(--space-6);}
+    .module-body p{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);max-width:68ch;}
+    .module-body strong{color:var(--text-primary);font-weight:600;}
+    .module-body em{font-style:italic;color:var(--teal);}
+    .tx-code{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:0.85em;font-weight:600;background:var(--navy-faint);color:var(--navy);border:1px solid rgba(31,56,100,0.18);border-radius:var(--radius-sm);padding:1px 7px;}
+
+    /* ── RISK FILTER FLOW ── */
+    .risk-flow{display:flex;align-items:center;gap:0;margin:var(--space-5) 0 var(--space-8);overflow-x:auto;padding-bottom:var(--space-2);}
+    .risk-flow-step{flex:1;min-width:130px;background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-xl);padding:var(--space-4) var(--space-3);box-shadow:var(--shadow-xs);text-align:center;}
+    .risk-flow-step__num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:var(--scale-xs);font-weight:700;color:var(--white);margin:0 auto var(--space-2);}
+    .risk-flow-step__label{font-size:var(--scale-xs);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-1);}
+    .risk-flow-step__desc{font-size:var(--scale-2xs);color:var(--text-muted);line-height:1.4;}
+    .risk-flow-arrow{font-size:1.2rem;color:var(--teal);flex-shrink:0;padding:0 var(--space-2);}
+
+    /* ── PARAM CARDS ── */
+    .param-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-4);margin:var(--space-5) 0 var(--space-8);}
+    .param-card{background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-2xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .param-card__header{padding:var(--space-3) var(--space-5);display:flex;align-items:center;gap:var(--space-3);}
+    .param-card__num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--scale-sm);color:var(--white);flex-shrink:0;}
+    .param-card__title{font-size:var(--scale-base);font-weight:700;color:var(--white);}
+    .param-card__body{padding:var(--space-4) var(--space-5);}
+    .param-card__question{font-size:var(--scale-sm);font-weight:700;color:var(--text-primary);font-style:italic;margin-bottom:var(--space-3);border-left:3px solid var(--teal);padding-left:var(--space-3);}
+    .param-card__desc{font-size:var(--scale-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-3);}
+    .param-card__fd-note{font-size:var(--scale-xs);background:var(--grey-50);border:1px solid var(--grey-100);border-radius:var(--radius-lg);padding:var(--space-2) var(--space-3);color:var(--text-muted);}
+    .param-card__fd-note strong{color:var(--navy);font-size:var(--scale-2xs);text-transform:uppercase;letter-spacing:0.04em;}
+
+    /* ── INTERACTIVE FD CHECKLIST ── */
+    .fd-checklist-container{background:var(--navy);border-radius:var(--radius-2xl);padding:var(--space-6);margin:var(--space-5) 0 var(--space-8);}
+    .fd-checklist-container__hdr{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-2);}
+    .fd-checklist-container__title{font-size:var(--scale-base);font-weight:700;color:var(--white);}
+    .fd-checklist-container__sub{font-size:var(--scale-xs);color:rgba(255,255,255,0.40);margin-bottom:var(--space-5);}
+    .fd-checklist-progress{height:4px;background:rgba(255,255,255,0.10);border-radius:var(--radius-pill);margin-bottom:var(--space-5);overflow:hidden;}
+    .fd-checklist-progress__fill{height:100%;background:var(--teal);border-radius:var(--radius-pill);transition:width 0.4s ease;width:0%;}
+    .fd-checklist-progress__label{font-size:var(--scale-2xs);color:rgba(255,255,255,0.35);text-align:right;margin-top:var(--space-1);margin-bottom:var(--space-4);}
+    .fd-section{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-xl);padding:var(--space-4) var(--space-5);margin-bottom:var(--space-3);}
+    .fd-section--checked{background:rgba(26,122,74,0.15);border-color:rgba(26,122,74,0.35);}
+    .fd-section__header{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-2);}
+    .fd-section__checkbox{width:22px;height:22px;border-radius:var(--radius-sm);border:2px solid rgba(255,255,255,0.30);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s ease;background:transparent;}
+    .fd-section--checked .fd-section__checkbox{background:var(--color-success);border-color:var(--color-success);}
+    .fd-section__checkmark{font-size:0.7rem;color:var(--white);opacity:0;transition:opacity 0.2s ease;}
+    .fd-section--checked .fd-section__checkmark{opacity:1;}
+    .fd-section__label{font-size:var(--scale-sm);font-weight:700;color:var(--white);flex:1;}
+    .fd-section__param{font-size:var(--scale-2xs);font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:2px 8px;border-radius:var(--radius-pill);}
+    .fd-section__items{display:flex;flex-direction:column;gap:var(--space-2);margin-left:34px;}
+    .fd-checklist-item{display:flex;align-items:flex-start;gap:var(--space-2);}
+    .fd-checklist-item__check{width:16px;height:16px;border-radius:3px;border:1.5px solid rgba(255,255,255,0.20);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;transition:all 0.2s ease;background:transparent;}
+    .fd-checklist-item__check--done{background:var(--teal);border-color:var(--teal);}
+    .fd-checklist-item__check__mark{font-size:0.55rem;color:var(--white);opacity:0;transition:opacity 0.2s;line-height:1;}
+    .fd-checklist-item__check--done .fd-checklist-item__check__mark{opacity:1;}
+    .fd-checklist-item__text{font-size:var(--scale-xs);color:rgba(255,255,255,0.55);line-height:1.5;flex:1;}
+    .fd-checklist-item__text--done{color:rgba(26,122,74,0.80);text-decoration:line-through;}
+    .fd-complete-badge{display:none;align-items:center;gap:var(--space-2);background:rgba(26,122,74,0.20);border:1px solid rgba(26,122,74,0.35);border-radius:var(--radius-xl);padding:var(--space-3) var(--space-4);margin-top:var(--space-4);}
+    .fd-complete-badge.visible{display:flex;}
+    .fd-complete-badge__icon{font-size:1.2rem;}
+    .fd-complete-badge__text{font-size:var(--scale-sm);font-weight:700;color:rgba(26,122,74,0.90);}
+
+    /* ── FD EXCERPT (quiz stem) ── */
+    .fd-excerpt{background:var(--grey-50);border:1px solid var(--grey-200);border-left:4px solid var(--amber);border-radius:var(--radius-xl);padding:var(--space-5);margin-bottom:var(--space-5);font-family:var(--font-mono);font-size:var(--scale-sm);}
+    .fd-excerpt__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--amber);margin-bottom:var(--space-3);font-family:var(--font-body);}
+    .fd-excerpt__content{color:var(--text-primary);line-height:1.7;}
+    .fd-excerpt__highlight{background:rgba(198,89,17,0.15);border-radius:3px;padding:0 3px;}
+
+    /* ── CONTROL OUTPUT BOX ── */
+    .control-output{background:var(--navy);border:1px solid rgba(31,122,140,0.35);border-left:4px solid var(--teal);border-radius:var(--radius-xl);padding:var(--space-5);margin:var(--space-5) 0;}
+    .control-output__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--teal-light);margin-bottom:var(--space-3);}
+    .control-output__grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);}
+    .control-output__field{background:rgba(255,255,255,0.04);border-radius:var(--radius-lg);padding:var(--space-3);}
+    .control-output__field-label{font-size:var(--scale-2xs);text-transform:uppercase;letter-spacing:0.04em;color:rgba(255,255,255,0.35);margin-bottom:var(--space-1);}
+    .control-output__field-value{font-size:var(--scale-sm);font-weight:600;color:var(--white);}
+
+    /* ── ACCORDION (section 3 test procedure) ── */
+    .acc-item{margin-bottom:var(--space-3);}
+    .acc-trigger{width:100%;background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-xl);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4) var(--space-5);text-align:left;transition:all var(--transition-base);}
+    .acc-trigger:hover{background:var(--grey-50);}
+    .acc-trigger.open{border-bottom-left-radius:0;border-bottom-right-radius:0;}
+    .acc-trigger__icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:var(--scale-sm);font-weight:700;color:var(--white);flex-shrink:0;}
+    .acc-trigger__text{flex:1;font-size:var(--scale-base);font-weight:700;color:var(--text-primary);}
+    .acc-trigger__sub{font-size:var(--scale-xs);color:var(--text-muted);}
+    .acc-trigger__chevron{width:18px;height:18px;flex-shrink:0;transition:transform 0.25s ease;color:var(--text-muted);}
+    .acc-trigger.open .acc-trigger__chevron{transform:rotate(180deg);}
+    .acc-panel{display:none;background:var(--white);border:1px solid var(--grey-100);border-top:none;border-radius:0 0 var(--radius-xl) var(--radius-xl);padding:var(--space-5) var(--space-6);}
+    .acc-panel.open{display:block;}
+
+    .ring-svg{transform:rotate(-90deg);}
+    .ring-bg{fill:none;stroke:var(--grey-100);stroke-width:3;}
+    .ring-fill{fill:none;stroke:var(--teal);stroke-width:3;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 600ms ease;}
+    .confetti-piece{position:absolute;border-radius:2px;animation:confettiFall linear forwards;}
+
+    @media(max-width:900px){
+      .lms-sidebar{position:fixed;left:0;top:var(--header-height);bottom:0;z-index:var(--z-overlay);transform:translateX(-100%);transition:transform var(--transition-slow);}
+      .lms-sidebar.open{transform:translateX(0);box-shadow:var(--shadow-xl);}
+      .lms-content{padding:var(--space-6) var(--space-5) var(--space-16);}
+      .module-hero{padding:var(--space-8) var(--space-5);}
+      .param-grid{grid-template-columns:1fr;}
+      .control-output__grid{grid-template-columns:1fr;}
+    }
+    @media(max-width:600px){.module-nav-footer__context{display:none;}.risk-flow{flex-wrap:wrap;gap:var(--space-3);}.risk-flow-arrow{display:none;}}
+  </style>
+</head>
+<body>
+<div class="lms-app" id="app">
+
+  <header class="lms-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    <a href="../index.html" class="lms-header__logo">
+      <div class="lms-header__logo-mark">T</div>
+      <div class="lms-header__brand"><span class="lms-header__brand-name">TIB Systems</span><span class="lms-header__brand-sub">Powered by TIB Systems Inc.</span></div>
+    </a>
+    <div class="lms-header__divider"></div>
+    <div class="lms-header__prog"><div class="lms-header__prog-name">SAP Controls &amp; Compliance Training Programme</div><div class="lms-header__prog-sub">10-Module Practitioner Path</div></div>
+    <div class="lms-header__actions">
+      <a href="../index.html" class="btn btn-ghost btn--sm" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.70);font-size:var(--scale-xs);">← All Modules</a>
+      <div class="badge badge--teal" id="header-status-badge">In Progress</div>
+    </div>
+  </header>
+
+  <div class="lms-body">
+    <aside class="lms-sidebar" id="sidebar">
+      <div class="lms-sidebar__section-label">Foundation</div>
+      <button class="lms-nav-item" data-module="B1" onclick="location.href='b1.html'"><div class="lms-nav-item__icon">B1</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Risk Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B2" onclick="location.href='b2.html'"><div class="lms-nav-item__icon">B2</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B3" onclick="location.href='b3.html'"><div class="lms-nav-item__icon">B3</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Nature</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B4" onclick="location.href='b4.html'"><div class="lms-nav-item__icon">B4</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Why Controls Matter</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Applied</div>
+      <button class="lms-nav-item" data-module="B5" onclick="location.href='b5.html'"><div class="lms-nav-item__icon">B5</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Engagement Types</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item" data-module="B6" onclick="location.href='b6.html'"><div class="lms-nav-item__icon">B6</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">S/4HANA Lifecycle</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item active" data-module="B7"><div class="lms-nav-item__icon">B7</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Reading FD Documents</div><div class="lms-nav-item__subtitle">Current module</div></div><div class="lms-nav-item__badge"></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Advanced</div>
+      <button class="lms-nav-item" data-module="B8" onclick="location.href='b8.html'"><div class="lms-nav-item__icon">B8</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Testing Phase</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <button class="lms-nav-item" data-module="B9" onclick="location.href='b9.html'"><div class="lms-nav-item__icon">B9</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">AI in Controls</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Capstone</div>
+      <button class="lms-nav-item" data-module="B10" onclick="location.href='b10.html'"><div class="lms-nav-item__icon">B10</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Practitioner Capstone</div><div class="lms-nav-item__subtitle">Capstone</div></div></button>
+      <div style="margin-top:auto;padding:var(--space-5);border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:var(--scale-2xs);color:rgba(255,255,255,0.30);letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-2);">Programme Progress</div>
+        <div class="progress-bar" style="height:5px;background:rgba(255,255,255,0.10);"><div class="progress-bar__fill" id="sidebar-prog-fill" style="width:0%;"></div></div>
+        <div style="font-family:var(--font-mono);font-size:var(--scale-2xs);color:rgba(255,255,255,0.35);margin-top:var(--space-2);" id="sidebar-prog-text">0 / 10 complete</div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+    <main class="lms-main" id="main-scroll">
+      <div class="module-progress-strip">
+        <span class="module-progress-strip__label">Module Progress</span>
+        <div class="module-progress-strip__bar"><div class="progress-bar"><div class="progress-bar__fill" id="mod-prog-bar" style="width:10%;"></div></div></div>
+        <span class="module-progress-strip__pct" id="mod-prog-pct">10%</span>
+      </div>
+
+      <div class="module-hero">
+        <div class="module-hero__inner">
+          <div class="module-hero__eyebrow"><span class="module-hero__code">B7</span><span class="module-hero__prog-label">SAP Controls &amp; Compliance Training Programme</span></div>
+          <h1 class="module-hero__title"><em>Reading FD Documents</em> — The Question Sequence</h1>
+          <p class="module-hero__desc">Master the four-parameter extraction sequence that turns a functional design document into a well-formed RACM control. Business purpose, direction, frequency, error handling — in that order, every time.</p>
+          <div class="module-hero__meta">
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="module-hero__meta-text">9–11 min · 3 sections · Screen-recording format</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span class="module-hero__meta-text">Interactive FD checklist · FD excerpt quiz · AI Tutor</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="module-hero__meta-text" id="hero-status">In progress</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lms-content">
+
+        <div class="learning-objectives animate-fade-in">
+          <div class="learning-objectives__header">
+            <div class="icon-circle icon-circle--md icon-circle--navy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <span class="learning-objectives__title">Learning Objectives</span>
+          </div>
+          <div class="learning-objectives__list">
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>apply the risk-first question sequence</strong> — business purpose, direction, frequency, error handling — to any functional design document before extracting control parameters.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>identify the controls-critical sections</strong> of an interface FD and use the interactive checklist to navigate them systematically.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>translate FD parameters into a formed RACM control</strong> with a control type, nature classification, and a two-element ITDM test procedure.</span></div>
+          </div>
+        </div>
+
+        <div class="tabs animate-fade-in">
+          <div class="tabs__nav" role="tablist">
+            <button class="tab-btn active" role="tab" data-tab="content"  onclick="switchTab(this,'content')">📖 Content</button>
+            <button class="tab-btn"        role="tab" data-tab="concepts" onclick="switchTab(this,'concepts')">🗂 Key Concepts</button>
+            <button class="tab-btn"        role="tab" data-tab="quiz"     onclick="switchTab(this,'quiz')">✏️ Knowledge Check</button>
+            <button class="tab-btn"        role="tab" data-tab="tutor"    onclick="switchTab(this,'tutor')">🤖 AI Tutor</button>
+          </div>
+
+          <!-- ══ TAB: CONTENT ══ -->
+          <div class="tab-panel active" id="tab-content">
+            <div class="module-body">
+
+              <h2 id="s1">Section 1 · What Is an FD and the Risk Filter</h2>
+
+              <p>A functional design document is a programme artefact produced by the system implementer. It describes how a specific function will work in the future-state system — an interface between two systems, a workflow that automates an approval, a custom report, or a configuration rationale. The source session is direct: the idea is not to read word for word, but to understand <strong>what specific types of details you need to draft an appropriate control</strong>.</p>
+
+              <h3>The One Question Before You Open the Document</h3>
+              <p>Before reading a single page of an FD, answer this question: <strong><em>What risk am I trying to control?</em></strong> This is your filter. Without it you will read everything and extract nothing. Define the risk — financial, operational, or regulatory — then assess whether this FD is relevant. If the answer is yes, proceed to parameter extraction.</p>
+
+              <div class="risk-flow">
+                <div class="risk-flow-step"><div class="risk-flow-step__num" style="background:var(--teal);">1</div><div class="risk-flow-step__label">FD received</div><div class="risk-flow-step__desc">Interface / workflow / report / config rationale</div></div>
+                <div class="risk-flow-arrow">→</div>
+                <div class="risk-flow-step"><div class="risk-flow-step__num" style="background:var(--navy);">2</div><div class="risk-flow-step__label">Name the risk</div><div class="risk-flow-step__desc">Financial / operational / regulatory — define it before opening</div></div>
+                <div class="risk-flow-arrow">→</div>
+                <div class="risk-flow-step"><div class="risk-flow-step__num" style="background:var(--amber);">3</div><div class="risk-flow-step__label">Relevance test</div><div class="risk-flow-step__desc">What could go wrong if this process or interface failed?</div></div>
+                <div class="risk-flow-arrow">→</div>
+                <div class="risk-flow-step"><div class="risk-flow-step__num" style="background:var(--color-success);">4</div><div class="risk-flow-step__label">Yes → Extract</div><div class="risk-flow-step__desc">Proceed to four-parameter extraction</div></div>
+              </div>
+
+              <div class="callout callout--info"><div class="callout__icon">💡</div><div class="callout__body"><div class="callout__title">PetroNova S.A. Scenario — FD-MM-INT-027</div><div class="callout__text">This module uses FD-MM-INT-027 — a purchase requisition interface from VANTAGE ERP into SAP S/4HANA MM — as the running example. The risk: if PRs are not transferred completely and accurately, PetroNova cannot raise purchase orders in SAP. That is an operational risk (procurement stops) and a financial risk (purchases made off-system create unrecorded liabilities). The FD is relevant. Proceed to extraction.</div></div></div>
+
+              <!-- ─────────────────────────────────── -->
+              <h2 id="s2">Section 2 · The Four Extraction Parameters</h2>
+
+              <p>Once you have confirmed the FD is relevant to your risk, move into extraction mode. For an interface FD — the most common type in a Materials Management or Finance transformation — four parameters generate your control design.</p>
+
+              <div class="param-grid">
+                <div class="param-card">
+                  <div class="param-card__header" style="background:var(--teal);">
+                    <div class="param-card__num" style="background:rgba(255,255,255,0.25);">1</div>
+                    <div class="param-card__title">Business Purpose</div>
+                  </div>
+                  <div class="param-card__body">
+                    <div class="param-card__question">"What is this interface supposed to do — and what is the business consequence if it fails?"</div>
+                    <div class="param-card__desc">Business purpose connects the technical specification to the financial or operational risk. A procurement interface that stops working means purchase orders cannot be raised. A financial posting interface that fails means the general ledger is incomplete.</div>
+                    <div class="param-card__fd-note"><strong>FD-MM-INT-027 → Section 2:</strong> Transfers approved PRs from VANTAGE ERP to SAP S/4HANA MM. Failure: no POs raised → procurement stops or goes off-system.</div>
+                  </div>
+                </div>
+                <div class="param-card">
+                  <div class="param-card__header" style="background:var(--navy);">
+                    <div class="param-card__num" style="background:rgba(255,255,255,0.20);">2</div>
+                    <div class="param-card__title">Direction</div>
+                  </div>
+                  <div class="param-card__body">
+                    <div class="param-card__question">"Is this unidirectional or bidirectional?"</div>
+                    <div class="param-card__desc">Direction determines where failure must be detected. For a unidirectional interface, all failure detection must happen at the receiving system — the sending system has no visibility of what happened after it transmitted. The monitoring control must sit at the receiver.</div>
+                    <div class="param-card__fd-note"><strong>FD-MM-INT-027 → Section 3.2:</strong> UNIDIRECTIONAL — VANTAGE sends, SAP receives. VANTAGE receives no confirmation. All detection on the SAP side.</div>
+                  </div>
+                </div>
+                <div class="param-card">
+                  <div class="param-card__header" style="background:var(--amber);">
+                    <div class="param-card__num" style="background:rgba(255,255,255,0.20);">3</div>
+                    <div class="param-card__title">Frequency</div>
+                  </div>
+                  <div class="param-card__body">
+                    <div class="param-card__question">"How often does the interface run?"</div>
+                    <div class="param-card__desc">Frequency sets the maximum exposure window — the period during which undetected errors can accumulate. A daily monitoring report is not sufficient for an interface that runs every hour. The control design must match the frequency.</div>
+                    <div class="param-card__fd-note"><strong>FD-MM-INT-027 → Section 3.3:</strong> Every 4 hours during business hours (normal operations). Exposure window = 4 hours per cycle.</div>
+                  </div>
+                </div>
+                <div class="param-card">
+                  <div class="param-card__header" style="background:#C62A1F;">
+                    <div class="param-card__num" style="background:rgba(255,255,255,0.20);">4</div>
+                    <div class="param-card__title">Error Handling ⚠</div>
+                  </div>
+                  <div class="param-card__body">
+                    <div class="param-card__question">"How does the system detect, alert, and resolve transfer failures?"</div>
+                    <div class="param-card__desc">This is where most interface controls live. You need: automatic error detection, an alert mechanism, a defined resolution procedure with a timeline, and a reconciliation to confirm the data was recovered. If any of these is missing, that is a control gap.</div>
+                    <div class="param-card__fd-note"><strong>FD-MM-INT-027 → Section 5:</strong> Hard Errors → /PNS/INT_ERR → email alert within 15 min → 4-hour resolution SLA → re-submission log → daily sign-off report.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- INTERACTIVE FD CHECKLIST -->
+              <div class="fd-checklist-container">
+                <div class="fd-checklist-container__hdr">
+                  <span style="font-size:1.3rem;">📋</span>
+                  <div class="fd-checklist-container__title">Interactive FD Review Checklist</div>
+                </div>
+                <div class="fd-checklist-container__sub">Use this checklist while reviewing FD-MM-INT-027 (or any interface FD). Tick each item as you confirm it. Stateless — resets on page reload.</div>
+                <div class="fd-checklist-progress"><div class="fd-checklist-progress__fill" id="chk-progress-bar"></div></div>
+                <div class="fd-checklist-progress__label" id="chk-progress-label">0 / 11 items confirmed</div>
+
+                <!-- Section A — Business Purpose -->
+                <div class="fd-section" id="fds-a">
+                  <div class="fd-section__header" onclick="toggleSection('a')">
+                    <div class="fd-section__checkbox" id="fds-a-box"><div class="fd-section__checkmark">✓</div></div>
+                    <div class="fd-section__label">Section A · Business Purpose &amp; Scope</div>
+                    <span class="fd-section__param" style="background:rgba(31,122,140,0.20);color:#9BDEF0;">Param 1</span>
+                  </div>
+                  <div class="fd-section__items">
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="a"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I can state what data this interface transfers and between which systems.</div></div>
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="a"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I can describe the business consequence if the interface fails (operational or financial impact).</div></div>
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="a"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have noted any explicit in-scope / out-of-scope boundaries that affect the control population.</div></div>
+                  </div>
+                </div>
+
+                <!-- Section B — Direction -->
+                <div class="fd-section" id="fds-b">
+                  <div class="fd-section__header" onclick="toggleSection('b')">
+                    <div class="fd-section__checkbox" id="fds-b-box"><div class="fd-section__checkmark">✓</div></div>
+                    <div class="fd-section__label">Section B · Interface Direction</div>
+                    <span class="fd-section__param" style="background:rgba(31,56,100,0.25);color:#9BB0C8;">Param 2</span>
+                  </div>
+                  <div class="fd-section__items">
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="b"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have confirmed whether the interface is unidirectional or bidirectional.</div></div>
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="b"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">For unidirectional: I have confirmed the monitoring control must sit at the receiving system.</div></div>
+                  </div>
+                </div>
+
+                <!-- Section C — Frequency -->
+                <div class="fd-section" id="fds-c">
+                  <div class="fd-section__header" onclick="toggleSection('c')">
+                    <div class="fd-section__checkbox" id="fds-c-box"><div class="fd-section__checkmark">✓</div></div>
+                    <div class="fd-section__label">Section C · Transfer Frequency</div>
+                    <span class="fd-section__param" style="background:rgba(198,89,17,0.20);color:#F0A070;">Param 3</span>
+                  </div>
+                  <div class="fd-section__items">
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="c"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have recorded the interface frequency (e.g. every 4 hours, daily, real-time).</div></div>
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="c"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have assessed whether the monitoring control frequency is aligned to the transfer frequency.</div></div>
+                  </div>
+                </div>
+
+                <!-- Section D — Error Handling -->
+                <div class="fd-section" id="fds-d">
+                  <div class="fd-section__header" onclick="toggleSection('d')">
+                    <div class="fd-section__checkbox" id="fds-d-box"><div class="fd-section__checkmark">✓</div></div>
+                    <div class="fd-section__label">Section D · Error Handling &amp; Monitoring ⚠ Controls-Critical</div>
+                    <span class="fd-section__param" style="background:rgba(198,42,31,0.20);color:#F08080;">Param 4</span>
+                  </div>
+                  <div class="fd-section__items">
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="d"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have confirmed the system detects errors automatically (hard errors, soft warnings, interface failures).</div></div>
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="d"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have confirmed there is a notification mechanism (email alert, system message) when errors occur.</div></div>
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="d"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have recorded the resolution SLA (e.g. hard errors resolved within 4 hours).</div></div>
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="d"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have confirmed there is a reconciliation or sign-off mechanism to evidence the control was performed.</div></div>
+                    <div class="fd-checklist-item"><div class="fd-checklist-item__check" onclick="tickItem(this)" data-section="d"><div class="fd-checklist-item__check__mark">✓</div></div><div class="fd-checklist-item__text">I have identified any gaps in error handling that represent a control design deficiency.</div></div>
+                  </div>
+                </div>
+
+                <div class="fd-complete-badge" id="fd-complete-badge">
+                  <div class="fd-complete-badge__icon">✅</div>
+                  <div class="fd-complete-badge__text">All sections reviewed — you have everything you need to draft the control.</div>
+                </div>
+              </div><!-- /fd-checklist-container -->
+
+              <!-- ─────────────────────────────────── -->
+              <h2 id="s3">Section 3 · Deriving the Control</h2>
+
+              <p>With all four parameters extracted, the control design follows directly. Using the PetroNova S.A. FD-MM-INT-027 scenario:</p>
+
+              <div class="control-output">
+                <div class="control-output__label">RACM Control Output — FIN-P2P-028</div>
+                <div class="control-output__grid">
+                  <div class="control-output__field"><div class="control-output__field-label">Control Reference</div><div class="control-output__field-value">FIN-P2P-028</div></div>
+                  <div class="control-output__field"><div class="control-output__field-label">Control Type</div><div class="control-output__field-value">Detective</div></div>
+                  <div class="control-output__field"><div class="control-output__field-label">Control Nature</div><div class="control-output__field-value">ITDM — IT-Dependent Manual</div></div>
+                  <div class="control-output__field"><div class="control-output__field-label">Risk</div><div class="control-output__field-value">Incomplete/inaccurate PR transfer → no POs in SAP → off-system procurement → unrecorded liabilities</div></div>
+                  <div class="control-output__field" style="grid-column:1/-1;"><div class="control-output__field-label">Control Description</div><div class="control-output__field-value">The P2P Interface Monitor reviews the daily SAP monitoring report (/PNS/INT_RPT_DAILY) by 09:00 WAT each business day. For each Hard Error flagged, the Monitor investigates the root cause, resolves it, and re-submits the affected records within 4 hours of notification. The signed-off monitoring report and re-submission log are retained as evidence.</div></div>
+                </div>
+              </div>
+
+              <h3>Why This Is an ITDM Control</h3>
+              <p>The system component: SAP automatically generates the monitoring report and populates the error log. The human component: the P2P Interface Monitor reviews the report, investigates exceptions, documents corrective action, and signs off. Both elements must be present and evidenced — a report that is generated but not reviewed is evidence that a control exists, not that it is effective. This is the <strong>B3 ITDM pattern</strong> applied to an interface control scenario.</p>
+
+              <h3>Test Procedure — Two-Element ITDM Pattern</h3>
+              <div class="acc-item">
+                <button class="acc-trigger" onclick="toggleAcc(this)">
+                  <div class="acc-trigger__icon" style="background:var(--teal);">1</div>
+                  <div class="acc-trigger__text">Element 1 — System Component: Report Completeness &amp; Accuracy<div class="acc-trigger__sub">Verify the monitoring report is complete and covers the right population</div></div>
+                  <svg class="acc-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="acc-panel">
+                  <div class="step-block"><div class="step-block__number">01</div><div class="step-block__content"><div class="step-block__title">Coverage Check</div><div class="step-block__text">Confirm the daily monitoring report covers all batch cycles for the test period. Verify the report is generated from the correct SAP table (<span class="tx-code">/PNS/INT_ERR</span> and <span class="tx-code">/PNS/INT_WARN</span>).</div></div></div>
+                  <div class="step-block"><div class="step-block__number">02</div><div class="step-block__content"><div class="step-block__title">Accuracy Sample</div><div class="step-block__text">Select 3 batch cycles from the test period. For each, agree the Hard Error count in the report to the records in <span class="tx-code">/PNS/INT_ERR</span>. Confirm there are no gaps — every hard error in the table should appear in the report.</div></div></div>
+                  <div class="step-block"><div class="step-block__number">03</div><div class="step-block__content"><div class="step-block__title">Reconciliation Verification</div><div class="step-block__text">Confirm the end-of-day PR count reconciliation was performed — total approved PRs in VANTAGE matches total PR records received by SAP for the same day.</div></div></div>
+                </div>
+              </div>
+              <div class="acc-item">
+                <button class="acc-trigger" onclick="toggleAcc(this)">
+                  <div class="acc-trigger__icon" style="background:var(--amber);">2</div>
+                  <div class="acc-trigger__text">Element 2 — Human Component: Review Evidence &amp; Exception Resolution<div class="acc-trigger__sub">Verify the P2P Monitor reviewed, investigated, and documented exceptions</div></div>
+                  <svg class="acc-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="acc-panel">
+                  <div class="step-block"><div class="step-block__number">01</div><div class="step-block__content"><div class="step-block__title">Review Evidence</div><div class="step-block__text">Is there a signed-off monitoring report for each business day in the test period? Confirm sign-off is by the P2P Process Lead (not a subordinate or IT). Confirm sign-off occurred by 09:00 WAT the following business day per the SLA.</div></div></div>
+                  <div class="step-block"><div class="step-block__number">02</div><div class="step-block__content"><div class="step-block__title">Exception Follow-Up</div><div class="step-block__text">For each Hard Error flagged in the period: is there a re-submission record in <span class="tx-code">/PNS/INT_RESUBMIT</span> with a timestamp within 4 hours of the original alert? Is there a documented root cause and resolution sign-off?</div></div></div>
+                  <div class="step-block"><div class="step-block__number">03</div><div class="step-block__content"><div class="step-block__title">Effectiveness Assessment</div><div class="step-block__text">A monitoring report that is signed off with no exception investigation documented — despite hard errors in the log — is evidence that a review occurred, not that it was effective. Flag as ITDM deficiency if exception follow-up is absent.</div></div></div>
+                </div>
+              </div>
+
+              <div class="callout callout--success"><div class="callout__icon">✅</div><div class="callout__body"><div class="callout__title">All Sections Complete</div><div class="callout__text">You have worked through the FD question sequence, the interactive checklist, and the control derivation. Proceed to <strong>Key Concepts</strong> for a structured recall review, or go directly to the <strong>Knowledge Check</strong>. A passing score of 60% marks this module complete and unlocks Module B8.</div></div></div>
+
+            </div>
+          </div><!-- /tab-content -->
+
+          <!-- ══ TAB: KEY CONCEPTS ══ -->
+          <div class="tab-panel" id="tab-concepts">
+            <div style="font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-4);">The Four Extraction Parameters — Quick Reference</div>
+            <div class="grid-2" style="margin-bottom:var(--space-6);">
+              <div class="concept-card"><div class="concept-card__accent"></div><div class="concept-card__body"><div class="concept-card__label">Parameter 01</div><div class="concept-card__title">Business Purpose</div><div class="concept-card__body-text">FD Section 2. What data transfers, between which systems, and what is the business consequence if the transfer fails? This connects the technical spec to the financial or operational risk in the RACM.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--navy"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--navy">Parameter 02</div><div class="concept-card__title">Direction</div><div class="concept-card__body-text">FD Section 3. Unidirectional or bidirectional? Unidirectional: all failure detection must sit at the receiving system. The sending system has no visibility after transmission.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--amber"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--amber">Parameter 03</div><div class="concept-card__title">Frequency</div><div class="concept-card__body-text">FD Section 3. Sets the exposure window — how long errors accumulate before the next monitoring cycle. Control monitoring frequency must match or exceed the transfer frequency.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent" style="background:#C62A1F;"></div><div class="concept-card__body"><div class="concept-card__label" style="color:#C62A1F;">Parameter 04 ⚠</div><div class="concept-card__title">Error Handling</div><div class="concept-card__body-text">FD Section 5. Controls-Critical. Must cover: automatic detection, alert mechanism, resolution SLA, reconciliation/sign-off evidence. Any gap = a control gap.</div></div></div>
+            </div>
+
+            <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Key Definitions</div><div class="section-divider__line"></div></div>
+
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Functional Design Document (FD)</span></div><div class="key-term__definition">A programme artefact produced by the system implementer describing how a specific function will work in the future-state system. Types: interface FD, workflow FD, custom report FD, configuration rationale. Controls teams read FDs to identify risk-relevant design decisions and extract control parameters — not to read them word for word.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Concept</span><span class="key-term__word">Risk Filter</span></div><div class="key-term__definition">The one question that must be answered before opening an FD: "What risk am I trying to control?" This is the practitioner's filter — it determines whether the FD is relevant at all, and it shapes which sections of the FD to prioritise. Defined as financial, operational, or regulatory.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Concept</span><span class="key-term__word">Exposure Window</span></div><div class="key-term__definition">The period during which undetected errors can accumulate between monitoring cycles. Set by the interface frequency. If an interface runs every 4 hours and errors are only reviewed once daily, the exposure window is up to 20 hours. Control design must close this gap — monitoring frequency must match or exceed transfer frequency.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Concept</span><span class="key-term__word">Controls-Critical Section</span></div><div class="key-term__definition">The section of an FD that directly generates control parameters — typically the error handling and monitoring section (Section 5 in FD-MM-INT-027). Practitioners should navigate directly to this section after confirming relevance and direction. It describes what happens when things go wrong — and that is where the control lives.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Control</span><span class="key-term__word">FIN-P2P-028 — Interface Monitoring Review</span></div><div class="key-term__definition">The ITDM control derived from FD-MM-INT-027. System component: SAP generates the daily monitoring report from /PNS/INT_RPT_DAILY. Human component: P2P Interface Monitor reviews, investigates exceptions, and signs off. Detective in nature (identifies errors after they occur). Both elements must be evidenced for the control to be testable under the Module B3 ITDM standard.</div></div>
+          </div><!-- /tab-concepts -->
+
+          <!-- ══ TAB: QUIZ ══ -->
+          <div class="tab-panel" id="tab-quiz">
+            <div class="quiz-block">
+              <div class="quiz-block__header"><div class="quiz-block__icon">✏️</div><div class="quiz-block__title">Knowledge Check — B7 Reading FD Documents</div><div class="quiz-block__counter" id="quiz-counter">Q1 of 5</div></div>
+              <div class="quiz-block__body" id="quiz-body">
+                <div id="quiz-question-wrap">
+                  <div class="quiz-question" id="quiz-q-text">Loading…</div>
+                  <div class="quiz-options" id="quiz-options"></div>
+                  <div class="quiz-feedback" id="quiz-feedback"><div class="quiz-feedback__icon" id="quiz-fb-icon"></div><div class="quiz-feedback__text" id="quiz-fb-text"></div></div>
+                </div>
+                <div class="quiz-score-display hidden" id="quiz-score-screen">
+                  <div class="quiz-score-display__number" id="quiz-score-num">—</div>
+                  <div class="quiz-score-display__label">Your Score</div>
+                  <div style="margin-top:var(--space-4);font-size:var(--scale-sm);color:var(--text-secondary);max-width:40ch;margin-left:auto;margin-right:auto;" id="quiz-score-msg"></div>
+                  <div style="margin-top:var(--space-8);display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="restartQuiz()">Retake Quiz</button>
+                    <button class="btn btn-primary" onclick="switchTab(document.querySelector('[data-tab=tutor]'),'tutor')">Ask AI Tutor</button>
+                    <button class="btn btn-navy" id="next-mod-btn" onclick="location.href='b8.html'" style="display:none;">Next: B8 →</button>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-block__footer" id="quiz-footer">
+                <div style="font-size:var(--scale-xs);color:var(--text-muted);"><span id="quiz-score-track">Score: 0 / 0</span></div>
+                <div style="display:flex;gap:var(--space-3);">
+                  <button class="btn btn-ghost btn--sm" id="quiz-check-btn" onclick="checkAnswer()" disabled>Check Answer</button>
+                  <button class="btn btn-primary btn--sm hidden" id="quiz-next-btn" onclick="nextQuestion()">Next →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ TAB: AI TUTOR ══ -->
+          <div class="tab-panel" id="tab-tutor">
+            <div class="ai-tutor">
+              <div class="ai-tutor__header">
+                <div class="ai-tutor__avatar">🤖</div>
+                <div class="ai-tutor__info"><div class="ai-tutor__name">TIB AI Tutor</div><div class="ai-tutor__status"><div class="ai-tutor__status-dot"></div>Ready — Module B7 context loaded</div></div>
+                <div class="ai-tutor__badge">Powered by Claude</div>
+              </div>
+              <div class="ai-tutor__messages" id="chat-messages">
+                <div class="chat-message chat-message--ai"><div class="chat-message__avatar">T</div><div class="chat-message__bubble">👋 Welcome to Module B7 — <strong>Reading FD Documents</strong>.<br><br>I have full context on the four FD extraction parameters: Business Purpose (Section 2), Direction (Section 3), Frequency (Section 3), and Error Handling (Section 5 — Controls-Critical). I can walk you through any of them using the FD-MM-INT-027 scenario, help you understand how to derive the RACM control from FD parameters, or discuss what a good vs. insufficient error handling specification looks like.</div></div>
+              </div>
+              <div class="ai-tutor__prompt-row">
+                <button class="prompt-chip" onclick="sendChip(this)">What is the risk filter?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Business Purpose — what am I looking for?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Why does direction matter for controls?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Frequency and the exposure window</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Error Handling — what makes it complete?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">How do I derive FIN-P2P-028 from the FD?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Give me a quiz hint</button>
+              </div>
+              <div class="ai-tutor__input-row">
+                <textarea class="ai-tutor__textarea" id="chat-input" placeholder="Ask anything about Module B7 — Reading FD Documents…" rows="1" onkeydown="handleChatKey(event)" oninput="autoGrow(this)"></textarea>
+                <button class="ai-tutor__send" id="chat-send" onclick="sendChat()" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /tabs -->
+
+        <div class="completion-banner hidden" id="completion-banner">
+          <div class="completion-banner__confetti" id="confetti-wrap"></div>
+          <div class="completion-banner__inner">
+            <span class="completion-banner__icon">🎉</span>
+            <h2 class="completion-banner__title">Module B7 Complete!</h2>
+            <p class="completion-banner__subtitle">You can now apply the four-parameter FD reading sequence to any interface FD and derive a well-formed RACM control. Module B8 is now unlocked.</p>
+            <div class="completion-banner__stats">
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-score">—</div><div class="completion-banner__stat-label">Quiz Score</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value">B7</div><div class="completion-banner__stat-label">Module</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-time">—</div><div class="completion-banner__stat-label">Time Spent</div></div>
+            </div>
+            <a href="b8.html" class="btn btn-primary btn--xl">Continue to B8 — Testing Phase →</a>
+          </div>
+        </div>
+
+      </div><!-- /lms-content -->
+
+      <footer class="module-nav-footer">
+        <div class="module-nav-footer__context">
+          <svg class="module-nav-footer__progress-ring ring-svg" viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="15.9"/><circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15.9"/></svg>
+          <div class="module-nav-footer__labels"><div class="module-nav-footer__module">Module B7 · Applied</div><div class="module-nav-footer__title">Reading FD Documents</div></div>
+        </div>
+        <div class="module-nav-footer__actions">
+          <a href="b6.html" class="btn btn-ghost btn--sm">← B6</a>
+          <button class="btn btn-ghost btn--sm" id="mark-complete-btn" onclick="markComplete()">Mark Complete</button>
+          <a href="b8.html" class="btn btn-navy btn--sm">Next: B8 →</a>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const CLAUDE_API_KEY='sk-ant-api03-6S-zY5EX14Ity0O8rV9tk12lMdtk1QVBuc0RbxmLWssAqcE5avVmWPL3F_K-IMe8whHE9YdA-zxF7NFUuA2b-w-cM';
+const LS_COMPLETE_KEY='tib_module_b7_complete';
+const LS_ALL_CODES=['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'];
+const MODULE_START_MS=Date.now();
+
+// ── FD CHECKLIST ─────────────────────────────────────────
+const SECTION_ITEMS={a:3,b:2,c:2,d:5};
+const SECTION_TOTAL=11;
+let chkState={a:[false,false,false],b:[false,false],c:[false,false],d:[false,false,false,false,false]};
+function tickItem(el){
+  const sec=el.dataset.section;
+  const idx=Array.from(el.parentElement.parentElement.querySelectorAll('.fd-checklist-item__check')).indexOf(el);
+  chkState[sec][idx]=!chkState[sec][idx];
+  el.classList.toggle('fd-checklist-item__check--done',chkState[sec][idx]);
+  const textEl=el.nextElementSibling;
+  if(textEl) textEl.classList.toggle('fd-checklist-item__text--done',chkState[sec][idx]);
+  updateSectionState(sec);
+  updateProgress();
+}
+function updateSectionState(sec){
+  const all=chkState[sec].every(Boolean);
+  const box=document.getElementById(`fds-${sec}-box`);
+  const section=document.getElementById(`fds-${sec}`);
+  if(box){box.querySelector('.fd-section__checkmark').style.opacity=all?'1':'0';box.style.background=all?'var(--color-success)':'';}
+  if(section) section.classList.toggle('fd-section--checked',all);
+}
+function updateProgress(){
+  const total=Object.values(chkState).flat().filter(Boolean).length;
+  const pct=Math.round((total/SECTION_TOTAL)*100);
+  const bar=document.getElementById('chk-progress-bar');
+  const lbl=document.getElementById('chk-progress-label');
+  const badge=document.getElementById('fd-complete-badge');
+  if(bar) bar.style.width=pct+'%';
+  if(lbl) lbl.textContent=`${total} / ${SECTION_TOTAL} items confirmed`;
+  if(badge) badge.classList.toggle('visible',total===SECTION_TOTAL);
+}
+function toggleSection(sec){
+  const allItems=document.querySelectorAll(`[data-section="${sec}"]`);
+  const allDone=chkState[sec].every(Boolean);
+  chkState[sec]=chkState[sec].map(()=>!allDone);
+  allItems.forEach((el,i)=>{el.classList.toggle('fd-checklist-item__check--done',chkState[sec][i]);const t=el.nextElementSibling;if(t)t.classList.toggle('fd-checklist-item__text--done',chkState[sec][i]);});
+  updateSectionState(sec);
+  updateProgress();
+}
+
+// ── ACCORDION ─────────────────────────────────────────────
+function toggleAcc(trigger){
+  const panel=trigger.nextElementSibling;const isOpen=trigger.classList.contains('open');
+  document.querySelectorAll('.acc-trigger').forEach(t=>{t.classList.remove('open');t.nextElementSibling.classList.remove('open');});
+  if(!isOpen){trigger.classList.add('open');panel.classList.add('open');}
+}
+
+// ── QUIZ ─────────────────────────────────────────────────
+const QUIZ=[
+  {
+    q:'A controls practitioner on a PetroNova S.A. engagement receives FD-MM-INT-027 — a 21-page document describing an interface from VANTAGE ERP into SAP S/4HANA. What is the correct first action before opening the document?',
+    opts:[
+      {t:'Read the full document from cover to cover before making any judgement about relevance.',c:false},
+      {t:'Check whether the FD has been formally approved and signed off by the business process owner.',c:false},
+      {t:'Define the risk being controlled — financial, operational, or regulatory — and assess whether this interface could affect that risk if it failed.',c:true},
+      {t:'Search the FD for the error handling section first, as that is where controls requirements are always found.',c:false}
+    ],
+    exp:'Correct. The risk filter is applied before reading the document — not after. Define the risk type first (financial, operational, or regulatory), then assess whether this interface could cause that risk to materialise if it failed. Only if the answer is yes do you proceed to parameter extraction. Option A reads everything without a filter — inefficient. Option B focuses on approvals rather than risk analysis. Option D goes directly to error handling without first confirming the FD is relevant to the risk being controlled.'
+  },
+  {
+    q:'Read the following excerpt from FD-MM-INT-027 Section 3.2:\n\n"This is a unidirectional interface. Data flows from VANTAGE ERP to SAP S/4HANA only. There is no acknowledgement or return data flow from SAP to VANTAGE as part of this interface. Because VANTAGE does not receive confirmation from SAP, any transfer failures must be detected and resolved on the SAP side."\n\nWhat is the controls implication of this excerpt?',
+    opts:[
+      {t:'The control must be designed in VANTAGE ERP, since that is where the data originates.',c:false},
+      {t:'No monitoring control is needed — because there is no bidirectional data flow, errors are self-correcting.',c:false},
+      {t:'Because VANTAGE receives no confirmation, all error detection and monitoring controls must be designed and placed at the SAP receiving system.',c:true},
+      {t:'A bidirectional interface should be recommended to the client so that VANTAGE can confirm successful transfers.',c:false}
+    ],
+    exp:'Correct. This is the key controls implication of a unidirectional interface. Because the sending system (VANTAGE) receives no acknowledgement from the receiving system (SAP), it has no visibility of what happened after transmission. This means the monitoring control must be placed entirely on the SAP side — error detection, alerts, resolution tracking, and the daily sign-off report must all be SAP-based. Option A incorrectly places the control in VANTAGE, which has no visibility of the transfer outcome. Option B is incorrect — a unidirectional interface creates a higher monitoring requirement, not zero. Option D is a system design recommendation, not a controls response.'
+  },
+  {
+    q:'Read the following excerpt from FD-MM-INT-027 Section 3.3:\n\n"Normal Operations: Every 4 hours during business hours: 06:00, 10:00, 14:00, 18:00 WAT."\n\nA controls practitioner is designing the monitoring control for this interface. They propose a weekly report review — every Monday morning, the P2P manager reviews a summary of the previous week\'s interface activity. What is wrong with this design?',
+    opts:[
+      {t:'Nothing is wrong — a weekly review is sufficient for a low-risk procurement interface.',c:false},
+      {t:'The monitoring frequency (weekly) does not match the interface frequency (every 4 hours). Up to 5 days of transfer failures could accumulate before detection.',c:true},
+      {t:'The review should be performed by IT Operations, not the P2P manager, since this is a technical interface.',c:false},
+      {t:'A weekly report is not an ITDM control — it must be replaced with an automated configuration control.',c:false}
+    ],
+    exp:'Correct. Frequency directly determines the exposure window — the period during which undetected errors accumulate before the monitoring cycle runs. An interface that runs every 4 hours during business hours could generate 20 batch cycles in a 5-day week. A weekly review means up to 5 days of transfer failures, missing records, or data corruption could go undetected before the control fires. The control design must match or exceed the transfer frequency. A daily monitoring report — as specified in FD-MM-INT-027 Section 5.3 — is appropriate. A weekly review creates an unacceptable exposure window.'
+  },
+  {
+    q:'A controls practitioner reviews Section 5 of FD-MM-INT-027 and finds the following error handling specification:\n\n"Hard Errors: SAP logs the error to /PNS/INT_ERR with error code and timestamp. No automated notification is generated. The IT team checks the error log manually during their standard morning review."\n\nIs this a complete error handling specification for a 4-hour interface?',
+    opts:[
+      {t:'Yes — the error is logged and reviewed by IT, which is sufficient for a detective ITDM control.',c:false},
+      {t:'No — while detection exists (error log), there is no automated alert mechanism, no defined resolution SLA, and the manual morning review creates an exposure window of up to 20+ hours for late-day batch failures.',c:true},
+      {t:'Yes — an automated notification is not required as long as the error is logged in a system that is reviewed regularly.',c:false},
+      {t:'No — error handling for an interface control must always include a configuration testing step, which this specification does not mention.',c:false}
+    ],
+    exp:'Correct. A complete error handling specification must cover: (1) automatic detection ✓ (error logged), (2) notification mechanism ✗ (no automated alert), (3) resolution SLA ✗ (not defined), (4) reconciliation/sign-off ✗ (not mentioned). The manual morning review also creates a significant exposure window: a batch failure at 18:00 WAT will not be detected until the following morning — more than 12 hours of exposure. Compared to FD-MM-INT-027\'s full specification (email alert within 15 minutes, 4-hour SLA, re-submission log, daily sign-off), this is materially incomplete. Option A accepts a detection-only specification as sufficient. Option C accepts no notification as acceptable. Option D introduces a testing step requirement that is not part of the error handling completeness assessment.'
+  },
+  {
+    q:'Using FD-MM-INT-027 as the source document, a controls practitioner has extracted the four parameters: Business Purpose (PR transfer), Direction (unidirectional, SAP-side detection), Frequency (4-hourly), Error Handling (Section 5 complete spec). What is the correct control classification for FIN-P2P-028?',
+    opts:[
+      {t:'Preventive control · Configured automated — the system automatically blocks failed transfers before they affect the data.',c:false},
+      {t:'Detective control · IT-Dependent Manual (ITDM) — the system generates the monitoring report (IT component) and the P2P Monitor reviews and signs off (human component).',c:true},
+      {t:'Preventive control · IT-Dependent Manual (ITDM) — the daily review prevents interface failures from occurring in the first place.',c:false},
+      {t:'Detective control · Manual — the P2P Monitor performs the review without any system involvement.',c:false}
+    ],
+    exp:'Correct. Two dimensions must be classified: Type and Nature. Control TYPE: Detective. The interface errors have already occurred before the control fires — the monitoring report identifies what went wrong after the fact and triggers remediation. It does not prevent the transfer failure from occurring. Control NATURE: ITDM (IT-Dependent Manual). The system automatically generates the monitoring report from /PNS/INT_ERR and /PNS/INT_WARN (IT component). The P2P Interface Monitor reviews the report, investigates exceptions, and signs off (human component). Both elements are required and must be evidenced. Option A misclassifies as preventive and automated — the control does not stop errors from occurring. Option C is wrong on type — reviewing a report after errors have occurred is detection, not prevention. Option D misclassifies as manual — there is a clear IT component generating the monitoring data.'
+  }
+];
+
+// Quiz engine (same pattern as b6)
+let QS={idx:0,sel:null,answered:false,score:0};
+function renderQuestion(){
+  if(QS.idx>=QUIZ.length){showScoreScreen();return;}
+  const q=QUIZ[QS.idx];
+  document.getElementById('quiz-counter').textContent=`Q${QS.idx+1} of ${QUIZ.length}`;
+  document.getElementById('quiz-q-text').textContent=q.q;
+  const opts=document.getElementById('quiz-options');
+  opts.innerHTML='';
+  // If question has FD excerpt, render it above options
+  if(q.q.includes('Read the following excerpt')){
+    const excerptDiv=document.createElement('div');
+    excerptDiv.className='fd-excerpt';
+    const label=document.createElement('div');label.className='fd-excerpt__label';
+    const qLines=q.q.split('\n\n');
+    label.textContent='📄 FD Excerpt';
+    const content=document.createElement('div');content.className='fd-excerpt__content';
+    // Extract the excerpt lines (between first and last paragraph)
+    const excerptText=qLines.slice(1,-1).join('\n\n');
+    content.textContent=excerptText;
+    excerptDiv.appendChild(label);excerptDiv.appendChild(content);
+    opts.appendChild(excerptDiv);
+    // Replace question text with just the last paragraph (the actual question)
+    document.getElementById('quiz-q-text').textContent=qLines[0].replace('Read the following excerpt from FD-MM-INT-027 Section 3.2:\n\n','').replace('Read the following excerpt from FD-MM-INT-027 Section 3.3:\n\n','').replace('Read the following excerpt from FD-MM-INT-027 Section 5:\n\n','');
+  }
+  ['A','B','C','D'].forEach((ltr,i)=>{
+    const btn=document.createElement('button');btn.className='quiz-option';
+    btn.innerHTML=`<div class="quiz-option__marker">${ltr}</div><div class="quiz-option__text">${q.opts[i].t}</div>`;
+    btn.addEventListener('click',()=>selectOpt(i));opts.appendChild(btn);
+  });
+  document.getElementById('quiz-feedback').className='quiz-feedback';
+  document.getElementById('quiz-check-btn').disabled=true;
+  document.getElementById('quiz-next-btn').classList.add('hidden');
+  document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx}`;
+  QS.sel=null;QS.answered=false;
+}
+function selectOpt(i){if(QS.answered)return;QS.sel=i;document.querySelectorAll('.quiz-option').forEach((b,j)=>b.classList.toggle('selected',j===i));document.getElementById('quiz-check-btn').disabled=false;}
+function checkAnswer(){if(QS.sel===null||QS.answered)return;QS.answered=true;const q=QUIZ[QS.idx];const correct=q.opts[QS.sel].c;if(correct)QS.score++;document.querySelectorAll('.quiz-option').forEach((btn,i)=>{btn.classList.add('disabled');if(q.opts[i].c)btn.classList.add('correct');else if(i===QS.sel&&!correct)btn.classList.add('incorrect');});const fb=document.getElementById('quiz-feedback');fb.className=`quiz-feedback visible quiz-feedback--${correct?'correct':'incorrect'}`;document.getElementById('quiz-fb-icon').textContent=correct?'✅':'❌';document.getElementById('quiz-fb-text').textContent=q.exp;document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.remove('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx+1}`;}
+function nextQuestion(){QS.idx++;if(QS.idx>=QUIZ.length)showScoreScreen();else renderQuestion();}
+function showScoreScreen(){const pct=Math.round((QS.score/QUIZ.length)*100);const msgs=[[80,'🌟 Excellent. You can read an interface FD and derive a correctly formed RACM control. Ready for B8.'],[60,'👍 Good work — passed. Review the explanations on any questions you missed.'],[0,'📖 Not quite yet. Re-read the content and retake — you have got this.']];const msg=msgs.find(m=>pct>=m[0]);document.getElementById('quiz-score-num').textContent=`${QS.score}/${QUIZ.length}`;document.getElementById('quiz-score-msg').textContent=msg[1];document.getElementById('quiz-question-wrap').classList.add('hidden');document.getElementById('quiz-score-screen').classList.remove('hidden');document.getElementById('quiz-footer').classList.add('hidden');document.getElementById('stat-score').textContent=`${pct}%`;if(pct>=60){document.getElementById('next-mod-btn').style.display='';setTimeout(()=>markComplete(pct),800);}}
+function restartQuiz(){QS={idx:0,sel:null,answered:false,score:0};document.getElementById('quiz-question-wrap').classList.remove('hidden');document.getElementById('quiz-score-screen').classList.add('hidden');document.getElementById('quiz-footer').classList.remove('hidden');renderQuestion();}
+
+function markComplete(score){localStorage.setItem(LS_COMPLETE_KEY,'true');(async function(){try{if(window.__sccSb&&window.__sccUserEmail){await window.__sccSb.from('sapexec_scc_progress').upsert({email:window.__sccUserEmail,module_id:'b7'},{onConflict:'email,module_id'});}}catch(e){console.warn('sapexec_scc_progress sync failed',e);}})();refreshSidebarProgress();const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);const mins=Math.max(1,Math.round((Date.now()-MODULE_START_MS)/60000));document.getElementById('stat-time').textContent=`${mins}m`;const banner=document.getElementById('completion-banner');if(banner){banner.classList.remove('hidden');setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'center'}),200);launchConfetti();}showToast('success','Module B7 Complete!','Reading FD Documents is marked complete. B8 is now unlocked.',4500);}
+function showAlreadyComplete(){const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);}
+function setProgress(pct){const bar=document.getElementById('mod-prog-bar');const txt=document.getElementById('mod-prog-pct');const ring=document.getElementById('ring-fill');if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=pct+'%';if(ring)ring.style.strokeDashoffset=100-pct;}
+function refreshSidebarProgress(){const done=LS_ALL_CODES.filter(c=>localStorage.getItem(`tib_module_${c.toLowerCase()}_complete`)==='true').length;const pct=Math.round((done/10)*100);const fill=document.getElementById('sidebar-prog-fill');const txt=document.getElementById('sidebar-prog-text');if(fill)fill.style.width=pct+'%';if(txt)txt.textContent=`${done} / 10 complete`;}
+const TAB_PROGRESS={content:25,concepts:55,quiz:80,tutor:92};
+function switchTab(btn,tabId){if(typeof btn==='string'){tabId=btn;btn=document.querySelector(`[data-tab="${tabId}"]`);}document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));if(btn)btn.classList.add('active');const panel=document.getElementById(`tab-${tabId}`);if(panel)panel.classList.add('active');if(localStorage.getItem(LS_COMPLETE_KEY)!=='true')setProgress(TAB_PROGRESS[tabId]||10);}
+document.getElementById('hamburger').addEventListener('click',()=>{const sb=document.getElementById('sidebar');const bd=document.getElementById('sidebar-backdrop');const open=sb.classList.toggle('open');bd.classList.toggle('active',open);});
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-backdrop').classList.remove('active');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+document.getElementById('main-scroll').addEventListener('scroll',function(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')return;const pct=Math.round((this.scrollTop/Math.max(1,this.scrollHeight-this.clientHeight))*100);setProgress(Math.min(pct,24));});
+function launchConfetti(){const wrap=document.getElementById('confetti-wrap');if(!wrap)return;wrap.innerHTML='';const cols=['1F7A8C','C65911','FFFFFF','5BB5C6','F0A070','1F3864','2AA860'];for(let i=0;i<60;i++){const el=document.createElement('div');el.className='confetti-piece';el.style.cssText=`left:${Math.random()*100}%;top:${-10-Math.random()*20}px;background:#${cols[Math.floor(Math.random()*cols.length)]};width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s;animation-delay:${Math.random()*0.8}s;`;wrap.appendChild(el);}}
+function showToast(type,title,msg,ms=4000){const icons={success:'✅',info:'ℹ️',warning:'⚠️',error:'❌'};const el=document.createElement('div');el.className=`toast toast--${type}`;el.innerHTML=`<div class="toast__icon">${icons[type]||'ℹ️'}</div><div><div class="toast__title">${title}</div><div class="toast__message">${msg}</div></div>`;document.getElementById('toasts').appendChild(el);setTimeout(()=>{el.style.cssText='opacity:0;transform:translateY(8px);transition:all 300ms ease;';setTimeout(()=>el.remove(),300);},ms);}
+
+const SYSTEM_PROMPT=`You are TIB AI Tutor — an expert SAP GRC and Internal Controls instructor for TIB Systems Inc.
+
+You are supporting Module B7: Reading FD Documents, from the SAP Controls & Compliance Training Programme.
+
+MODULE B7 CONTEXT:
+- Four-parameter FD extraction sequence (apply in this order):
+  1. Business Purpose (FD Section 2): What data transfers, between which systems? What is the business consequence if it fails? Connects technical spec to financial/operational risk.
+  2. Direction (FD Section 3): Unidirectional or bidirectional? If unidirectional: all error detection must be at the receiving system — sending system has no visibility post-transmission.
+  3. Frequency (FD Section 3): Sets the exposure window. Control monitoring frequency must match or exceed transfer frequency. 4-hourly transfer → monitoring must be at least daily (not weekly).
+  4. Error Handling (FD Section 5 — Controls-Critical): Must cover: (a) automatic detection, (b) notification mechanism, (c) resolution SLA, (d) reconciliation/sign-off evidence. Any gap = control gap.
+- Risk filter: ONE question before opening any FD — "What risk am I trying to control?" (financial / operational / regulatory). This determines relevance before reading.
+- Exposure window: the period during which undetected errors accumulate between monitoring cycles. Controlled by frequency alignment.
+- PetroNova S.A. scenario: FD-MM-INT-027 — VANTAGE ERP → SAP S/4HANA MM. PR transfer. Risk: incomplete PRs → no POs → off-system procurement → unrecorded liabilities.
+- Control derived: FIN-P2P-028 — Daily monitoring report review. Type: Detective. Nature: ITDM. System: /PNS/INT_RPT_DAILY auto-generated. Human: P2P Monitor reviews, investigates, signs off.
+- Test procedure: Two-element ITDM (from B3): (1) system component — report completeness, /PNS/INT_ERR accuracy, reconciliation; (2) human component — signed report, exception follow-up within SLA, reviewer independence.
+- B3 callback: "A report generated but not reviewed is evidence that a control exists — not that it is effective."
+
+TONE: Professional, clear, encouraging. 2-4 paragraphs. Quiz hints = conceptual nudge only. Can walk through any FD parameter using the PetroNova scenario as an example.`;
+
+let chatHistory=[];
+async function sendChat(){const input=document.getElementById('chat-input');const sendBtn=document.getElementById('chat-send');const text=input.value.trim();if(!text)return;appendMsg('user',text);chatHistory.push({role:'user',content:text});input.value='';autoGrow(input);sendBtn.disabled=true;const typingId=appendTyping();try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:chatHistory})});if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}const data=await res.json();const reply=(data.content||[]).map(b=>b.type==='text'?b.text:'').join('');removeTyping(typingId);appendMsg('ai',reply);chatHistory.push({role:'assistant',content:reply});}catch(err){removeTyping(typingId);appendMsg('ai',`⚠️ Connection error: ${err.message}`);}finally{sendBtn.disabled=false;}}
+function appendMsg(role,text){const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className=`chat-message chat-message--${role}`;const initial=role==='ai'?'T':'U';const html=role==='ai'?text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code style="font-family:var(--font-mono);font-size:0.9em;background:var(--grey-100);padding:1px 5px;border-radius:3px;">$1</code>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>'):text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML=`<div class="chat-message__avatar">${initial}</div><div class="chat-message__bubble">${html}</div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;}
+function appendTyping(){const id=`typing-${Date.now()}`;const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className='chat-message chat-message--ai';el.id=id;el.innerHTML=`<div class="chat-message__avatar">T</div><div class="chat-message__bubble"><div class="chat-message__typing"><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div></div></div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;return id;}
+function removeTyping(id){const el=document.getElementById(id);if(el)el.remove();}
+function sendChip(btn){document.getElementById('chat-input').value=btn.textContent.trim();autoGrow(document.getElementById('chat-input'));sendChat();}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+
+(function boot(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')showAlreadyComplete();LS_ALL_CODES.forEach(c=>{const key=`tib_module_${c.toLowerCase()}_complete`;const item=document.querySelector(`[data-module="${c}"]`);if(item&&localStorage.getItem(key)==='true'){item.classList.add('complete');const icon=item.querySelector('.lms-nav-item__icon');if(icon)icon.textContent='✓';}});refreshSidebarProgress();renderQuestion();})();
+window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('tib_module_')){refreshSidebarProgress();if(e.key===LS_COMPLETE_KEY&&e.newValue==='true')showAlreadyComplete();}});
+</script>
+</body>
+</html>

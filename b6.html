@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="scc-auth-guard.js"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B6 — S/4HANA Lifecycle | SAP Controls &amp; Compliance | TIB Systems Inc.</title>
+  <link rel="stylesheet" href="design-system.css" />
+  <style>
+    .hamburger{display:none;flex-direction:column;gap:5px;background:transparent;border:none;cursor:pointer;padding:var(--space-2);border-radius:var(--radius-md);flex-shrink:0;}
+    .hamburger span{display:block;width:22px;height:2px;background:rgba(255,255,255,0.80);border-radius:2px;}
+    @media(max-width:900px){.hamburger{display:flex;}.lms-header__divider{display:none;}}
+    .sidebar-backdrop{display:none;position:fixed;inset:0;top:var(--header-height);background:var(--bg-overlay);z-index:calc(var(--z-overlay) - 1);}
+    .sidebar-backdrop.active{display:block;}
+    .module-body h2{font-family:var(--font-display);font-size:var(--scale-2xl);color:var(--text-primary);letter-spacing:var(--tracking-tight);line-height:var(--leading-tight);margin-bottom:var(--space-4);margin-top:var(--space-10);}
+    .module-body h2:first-child{margin-top:0;}
+    .module-body h3{font-size:var(--scale-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);margin-top:var(--space-6);}
+    .module-body p{font-size:var(--scale-base);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);max-width:68ch;}
+    .module-body strong{color:var(--text-primary);font-weight:600;}
+    .module-body em{font-style:italic;color:var(--teal);}
+
+    /* ── PHASE TIMELINE COMPONENT ── */
+    .phase-timeline{background:var(--navy);border-radius:var(--radius-2xl);padding:var(--space-6);margin:var(--space-6) 0;}
+    .phase-timeline__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:var(--space-5);}
+    .phase-timeline__track{display:flex;align-items:flex-start;gap:0;position:relative;margin-bottom:var(--space-5);}
+    .phase-timeline__track::before{content:'';position:absolute;top:22px;left:0;right:0;height:2px;background:rgba(255,255,255,0.10);z-index:0;}
+    .phase-node{flex:1;display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative;z-index:1;}
+    .phase-node__dot{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:var(--scale-sm);font-weight:700;color:rgba(255,255,255,0.40);background:rgba(255,255,255,0.05);transition:all 0.25s ease;margin-bottom:var(--space-2);}
+    .phase-node__code{font-size:var(--scale-2xs);font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:rgba(255,255,255,0.30);transition:color 0.25s ease;text-align:center;}
+    .phase-node__title{font-size:var(--scale-xs);color:rgba(255,255,255,0.25);text-align:center;line-height:1.3;transition:color 0.25s ease;margin-top:2px;}
+    .phase-node--active .phase-node__dot{border-color:var(--node-color,var(--teal));color:var(--white);background:var(--node-color,var(--teal));box-shadow:0 0 0 4px rgba(31,122,140,0.25);}
+    .phase-node--active .phase-node__code{color:var(--node-color,var(--teal));}
+    .phase-node--active .phase-node__title{color:rgba(255,255,255,0.75);}
+    .phase-node--done .phase-node__dot{border-color:rgba(26,122,74,0.60);color:rgba(26,122,74,0.90);background:rgba(26,122,74,0.12);}
+    .phase-connector{flex:0 0 40px;height:2px;background:rgba(255,255,255,0.08);align-self:center;margin-top:-2px;transition:background 0.25s ease;}
+    .phase-connector--done{background:rgba(26,122,74,0.45);}
+    /* Panel */
+    .phase-panel{display:none;border-radius:var(--radius-xl);overflow:hidden;}
+    .phase-panel.active{display:block;}
+    .phase-panel__header{padding:var(--space-4) var(--space-5);display:flex;align-items:center;gap:var(--space-3);}
+    .phase-panel__badge{font-size:var(--scale-xs);font-weight:700;padding:3px 10px;border-radius:var(--radius-pill);color:var(--white);}
+    .phase-panel__racm{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:rgba(255,255,255,0.55);margin-left:auto;}
+    .phase-panel__body{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-top:none;border-radius:0 0 var(--radius-xl) var(--radius-xl);padding:var(--space-5);}
+    .phase-activity-list{display:flex;flex-direction:column;gap:var(--space-3);}
+    .phase-activity{display:flex;gap:var(--space-3);align-items:flex-start;}
+    .phase-activity__icon{width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;margin-top:2px;}
+    .phase-activity__content{}
+    .phase-activity__title{font-size:var(--scale-sm);font-weight:700;color:var(--white);margin-bottom:2px;}
+    .phase-activity__desc{font-size:var(--scale-xs);color:rgba(255,255,255,0.50);line-height:1.5;}
+
+    /* ── PHASE ACCORDION ── */
+    .phase-accordion{display:flex;flex-direction:column;gap:var(--space-4);margin:var(--space-6) 0;}
+    .pa-item{border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .pa-trigger{width:100%;background:var(--white);border:none;cursor:pointer;display:flex;align-items:center;gap:var(--space-4);padding:var(--space-4) var(--space-5);border:1px solid var(--grey-100);border-radius:var(--radius-xl);transition:all var(--transition-base);text-align:left;}
+    .pa-trigger:hover{background:var(--grey-50);}
+    .pa-trigger.open{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-color:transparent;}
+    .pa-trigger__phase-dot{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:var(--scale-sm);font-weight:700;color:var(--white);flex-shrink:0;}
+    .pa-trigger__text{flex:1;}
+    .pa-trigger__title{font-size:var(--scale-md);font-weight:700;color:var(--text-primary);display:block;}
+    .pa-trigger__sub{font-size:var(--scale-xs);color:var(--text-muted);display:block;margin-top:2px;}
+    .pa-trigger__racm{font-size:var(--scale-2xs);font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:3px 10px;border-radius:var(--radius-pill);}
+    .pa-trigger__chevron{width:20px;height:20px;flex-shrink:0;transition:transform 0.25s ease;color:var(--text-muted);}
+    .pa-trigger.open .pa-trigger__chevron{transform:rotate(180deg);}
+    .pa-panel{display:none;background:var(--white);border:1px solid var(--grey-100);border-top:none;border-radius:0 0 var(--radius-xl) var(--radius-xl);padding:var(--space-5) var(--space-6);}
+    .pa-panel.open{display:block;}
+
+    /* AI callout in body */
+    .ai-insight{background:linear-gradient(135deg,var(--navy-deep) 0%,var(--navy) 100%);border:1px solid rgba(198,89,17,0.30);border-left:4px solid var(--amber);border-radius:var(--radius-xl);padding:var(--space-5);margin:var(--space-5) 0;}
+    .ai-insight__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--amber-light);margin-bottom:var(--space-2);}
+    .ai-insight__body{font-size:var(--scale-sm);color:rgba(255,255,255,0.60);line-height:var(--leading-relaxed);}
+
+    /* RACM status bar */
+    .racm-journey{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin:var(--space-5) 0 var(--space-8);}
+    .racm-stage{border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .racm-stage__header{padding:var(--space-2) var(--space-3);font-size:var(--scale-2xs);font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--white);}
+    .racm-stage__body{background:var(--white);border:1px solid var(--grey-100);border-top:none;padding:var(--space-3);}
+    .racm-stage__status{font-size:var(--scale-sm);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-1);}
+    .racm-stage__desc{font-size:var(--scale-xs);color:var(--text-muted);line-height:1.4;}
+
+    /* Three test categories */
+    .test-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin:var(--space-5) 0;}
+    .test-card{background:var(--white);border:1px solid var(--grey-100);border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);}
+    .test-card__header{padding:var(--space-3) var(--space-4);font-size:var(--scale-sm);font-weight:700;color:var(--white);}
+    .test-card__body{padding:var(--space-4);}
+    .test-card__what{font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-1);}
+    .test-card__desc{font-size:var(--scale-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-3);}
+    .test-card__example{font-size:var(--scale-xs);color:var(--text-muted);border-top:1px solid var(--grey-100);padding-top:var(--space-3);}
+
+    /* Field example callout */
+    .field-example{background:var(--navy-faint);border:1px solid rgba(31,56,100,0.15);border-left:4px solid var(--navy);border-radius:var(--radius-xl);padding:var(--space-5);margin:var(--space-5) 0;}
+    .field-example__label{font-size:var(--scale-2xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--navy);margin-bottom:var(--space-2);}
+    .field-example__body{font-size:var(--scale-sm);color:var(--text-secondary);line-height:var(--leading-relaxed);}
+
+    .ring-svg{transform:rotate(-90deg);}
+    .ring-bg{fill:none;stroke:var(--grey-100);stroke-width:3;}
+    .ring-fill{fill:none;stroke:var(--teal);stroke-width:3;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 600ms ease;}
+    .confetti-piece{position:absolute;border-radius:2px;animation:confettiFall linear forwards;}
+
+    @media(max-width:900px){
+      .lms-sidebar{position:fixed;left:0;top:var(--header-height);bottom:0;z-index:var(--z-overlay);transform:translateX(-100%);transition:transform var(--transition-slow);}
+      .lms-sidebar.open{transform:translateX(0);box-shadow:var(--shadow-xl);}
+      .lms-content{padding:var(--space-6) var(--space-5) var(--space-16);}
+      .module-hero{padding:var(--space-8) var(--space-5);}
+      .racm-journey{grid-template-columns:repeat(2,1fr);}
+      .test-grid{grid-template-columns:1fr;}
+      .phase-timeline__track::before{display:none;}
+    }
+    @media(max-width:600px){
+      .module-nav-footer__context{display:none;}
+      .racm-journey{grid-template-columns:1fr;}
+      .phase-timeline__track{flex-wrap:wrap;gap:var(--space-3);}
+      .phase-connector{display:none;}
+    }
+  </style>
+</head>
+<body>
+<div class="lms-app" id="app">
+
+  <header class="lms-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+    <a href="../index.html" class="lms-header__logo">
+      <div class="lms-header__logo-mark">T</div>
+      <div class="lms-header__brand"><span class="lms-header__brand-name">TIB Systems</span><span class="lms-header__brand-sub">Powered by TIB Systems Inc.</span></div>
+    </a>
+    <div class="lms-header__divider"></div>
+    <div class="lms-header__prog"><div class="lms-header__prog-name">SAP Controls &amp; Compliance Training Programme</div><div class="lms-header__prog-sub">10-Module Practitioner Path</div></div>
+    <div class="lms-header__actions">
+      <a href="../index.html" class="btn btn-ghost btn--sm" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.70);font-size:var(--scale-xs);">← All Modules</a>
+      <div class="badge badge--teal" id="header-status-badge">In Progress</div>
+    </div>
+  </header>
+
+  <div class="lms-body">
+    <aside class="lms-sidebar" id="sidebar">
+      <div class="lms-sidebar__section-label">Foundation</div>
+      <button class="lms-nav-item" data-module="B1" onclick="location.href='b1.html'"><div class="lms-nav-item__icon">B1</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Risk Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B2" onclick="location.href='b2.html'"><div class="lms-nav-item__icon">B2</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Types</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B3" onclick="location.href='b3.html'"><div class="lms-nav-item__icon">B3</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Control Nature</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <button class="lms-nav-item" data-module="B4" onclick="location.href='b4.html'"><div class="lms-nav-item__icon">B4</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Why Controls Matter</div><div class="lms-nav-item__subtitle">Foundation</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Applied</div>
+      <button class="lms-nav-item" data-module="B5" onclick="location.href='b5.html'"><div class="lms-nav-item__icon">B5</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Engagement Types</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <button class="lms-nav-item active" data-module="B6"><div class="lms-nav-item__icon">B6</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">S/4HANA Lifecycle</div><div class="lms-nav-item__subtitle">Current module</div></div><div class="lms-nav-item__badge"></div></button>
+      <button class="lms-nav-item" data-module="B7" onclick="location.href='b7.html'"><div class="lms-nav-item__icon">B7</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Reading FD Documents</div><div class="lms-nav-item__subtitle">Applied</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Advanced</div>
+      <button class="lms-nav-item" data-module="B8" onclick="location.href='b8.html'"><div class="lms-nav-item__icon">B8</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Testing Phase</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <button class="lms-nav-item" data-module="B9" onclick="location.href='b9.html'"><div class="lms-nav-item__icon">B9</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">AI in Controls</div><div class="lms-nav-item__subtitle">Advanced</div></div></button>
+      <div class="lms-sidebar__section-label" style="margin-top:var(--space-2);">Capstone</div>
+      <button class="lms-nav-item" data-module="B10" onclick="location.href='b10.html'"><div class="lms-nav-item__icon">B10</div><div class="lms-nav-item__text"><div class="lms-nav-item__title">Practitioner Capstone</div><div class="lms-nav-item__subtitle">Capstone</div></div></button>
+      <div style="margin-top:auto;padding:var(--space-5);border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:var(--scale-2xs);color:rgba(255,255,255,0.30);letter-spacing:var(--tracking-caps);text-transform:uppercase;margin-bottom:var(--space-2);">Programme Progress</div>
+        <div class="progress-bar" style="height:5px;background:rgba(255,255,255,0.10);"><div class="progress-bar__fill" id="sidebar-prog-fill" style="width:0%;"></div></div>
+        <div style="font-family:var(--font-mono);font-size:var(--scale-2xs);color:rgba(255,255,255,0.35);margin-top:var(--space-2);" id="sidebar-prog-text">0 / 10 complete</div>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+    <main class="lms-main" id="main-scroll">
+      <div class="module-progress-strip">
+        <span class="module-progress-strip__label">Module Progress</span>
+        <div class="module-progress-strip__bar"><div class="progress-bar"><div class="progress-bar__fill" id="mod-prog-bar" style="width:10%;"></div></div></div>
+        <span class="module-progress-strip__pct" id="mod-prog-pct">10%</span>
+      </div>
+
+      <div class="module-hero">
+        <div class="module-hero__inner">
+          <div class="module-hero__eyebrow"><span class="module-hero__code">B6</span><span class="module-hero__prog-label">SAP Controls &amp; Compliance Training Programme</span></div>
+          <h1 class="module-hero__title"><em>S/4HANA Lifecycle</em> — Phase by Phase</h1>
+          <p class="module-hero__desc">Map the controls workstream across all four phases of a full S/4HANA transformation — from Solution Confirmation through Design and Build, Testing, and Cutover and Deploy — tracking the RACM from preliminary draft to go-live-ready document.</p>
+          <div class="module-hero__meta">
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="module-hero__meta-text">14–16 min · 4 phases · Interactive timeline</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span class="module-hero__meta-text">RACM iteration narrative · 5-question quiz · AI Tutor</span></div>
+            <div class="module-hero__meta-item"><svg class="module-hero__meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="module-hero__meta-text" id="hero-status">In progress</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lms-content">
+
+        <div class="learning-objectives animate-fade-in">
+          <div class="learning-objectives__header">
+            <div class="icon-circle icon-circle--md icon-circle--navy"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <span class="learning-objectives__title">Learning Objectives</span>
+          </div>
+          <div class="learning-objectives__list">
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>describe the specific controls activities and deliverables in each of the four phases</strong> — Solution Confirmation, Design and Build, Testing, and Cutover and Deploy.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>explain how the RACM evolves across the lifecycle</strong> — from a preliminary draft in SolCon to a tested, go-live-ready document at Cutover and Deploy.</span></div>
+            <div class="learning-objective-item"><div class="learning-objective-item__tick">✓</div><span>By the end of this module you will be able to <strong>apply the key coordination strategies</strong> — the testing captain approach, AI agent integration points, and the external auditor relationship at each phase.</span></div>
+          </div>
+        </div>
+
+        <div class="tabs animate-fade-in">
+          <div class="tabs__nav" role="tablist">
+            <button class="tab-btn active" role="tab" data-tab="content"  onclick="switchTab(this,'content')">📖 Content</button>
+            <button class="tab-btn"        role="tab" data-tab="concepts" onclick="switchTab(this,'concepts')">🗂 Key Concepts</button>
+            <button class="tab-btn"        role="tab" data-tab="quiz"     onclick="switchTab(this,'quiz')">✏️ Knowledge Check</button>
+            <button class="tab-btn"        role="tab" data-tab="tutor"    onclick="switchTab(this,'tutor')">🤖 AI Tutor</button>
+          </div>
+
+          <!-- ══ TAB: CONTENT ══ -->
+          <div class="tab-panel active" id="tab-content">
+            <div class="module-body">
+
+              <h2 id="overview">The S/4HANA Transformation Lifecycle</h2>
+              <p>The S/4HANA transformation engagement is the most complex context for a controls practitioner — and the most important. The controls workstream runs across four distinct phases, each with different activities, different deliverables, and different primary coordination points. Click any phase below to explore its activities, or read through the full accordion that follows.</p>
+
+              <!-- INTERACTIVE PHASE TIMELINE -->
+              <div class="phase-timeline">
+                <div class="phase-timeline__label">Interactive Phase Timeline — Click a phase to explore</div>
+                <div class="phase-timeline__track">
+                  <div class="phase-node phase-node--active" id="node-sc" style="--node-color:#1F7A8C;" onclick="selectPhase('sc')">
+                    <div class="phase-node__dot">SC</div>
+                    <div class="phase-node__code">SolCon</div>
+                    <div class="phase-node__title">Solution<br>Confirmation</div>
+                  </div>
+                  <div class="phase-connector" id="conn-sc-db"></div>
+                  <div class="phase-node" id="node-db" style="--node-color:#2A5A9C;" onclick="selectPhase('db')">
+                    <div class="phase-node__dot">DB</div>
+                    <div class="phase-node__code">Design &amp; Build</div>
+                    <div class="phase-node__title">Design<br>&amp; Build</div>
+                  </div>
+                  <div class="phase-connector" id="conn-db-ts"></div>
+                  <div class="phase-node" id="node-ts" style="--node-color:#C65911;" onclick="selectPhase('ts')">
+                    <div class="phase-node__dot">TS</div>
+                    <div class="phase-node__code">Testing</div>
+                    <div class="phase-node__title">Testing</div>
+                  </div>
+                  <div class="phase-connector" id="conn-ts-cd"></div>
+                  <div class="phase-node" id="node-cd" style="--node-color:#1A7A4A;" onclick="selectPhase('cd')">
+                    <div class="phase-node__dot">CD</div>
+                    <div class="phase-node__code">Cutover</div>
+                    <div class="phase-node__title">Cutover<br>&amp; Deploy</div>
+                  </div>
+                </div>
+
+                <!-- Phase panels -->
+                <div class="phase-panel active" id="panel-sc">
+                  <div class="phase-panel__header" style="background:#1F7A8C;">
+                    <span class="phase-panel__badge" style="background:rgba(255,255,255,0.20);">Phase 1</span>
+                    <span style="font-size:var(--scale-base);font-weight:700;color:var(--white);">Solution Confirmation</span>
+                    <span class="phase-panel__racm">RACM: Preliminary Draft</span>
+                  </div>
+                  <div class="phase-panel__body">
+                    <div class="phase-activity-list">
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(31,122,140,0.20);">🧭</div><div class="phase-activity__content"><div class="phase-activity__title">Establish the Risk Universe</div><div class="phase-activity__desc">Review programme scope and business processes. Produce a preliminary risk assessment across financial, operational, and compliance risk categories. This is the foundation — without it, the RACM has no anchor.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(31,122,140,0.20);">📋</div><div class="phase-activity__content"><div class="phase-activity__title">Draft the Preliminary RACM</div><div class="phase-activity__desc">Not a finished document — a starting point. The source session: "it will not be perfect, but it sets the ground and foundation." Every subsequent phase refines it.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(31,122,140,0.20);">🤝</div><div class="phase-activity__content"><div class="phase-activity__title">Make Friends</div><div class="phase-activity__desc">Build relationships with SI functional leads, testing team, security team, data team, cybersecurity team. These relationships will be called upon in every subsequent phase. Invest in them now.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(198,89,17,0.20);">🎯</div><div class="phase-activity__content"><div class="phase-activity__title">Influence the Future State Design</div><div class="phase-activity__desc">Peak influence window. Identify processes that are currently manual but could be automated in S/4HANA. Raise them now — once Key Design Decisions are finalised, influencing the design becomes progressively harder and more expensive.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(198,89,17,0.20);">🤖</div><div class="phase-activity__content"><div class="phase-activity__title">AI Agent Opportunity</div><div class="phase-activity__desc">AI agents can perform current-state to future-state gap analysis and propose preliminary controls from programme artefacts. The practitioner's role shifts from information processing to judgement — validating, challenging, contextualising.</div></div></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="phase-panel" id="panel-db">
+                  <div class="phase-panel__header" style="background:#2A5A9C;">
+                    <span class="phase-panel__badge" style="background:rgba(255,255,255,0.20);">Phase 2</span>
+                    <span style="font-size:var(--scale-base);font-weight:700;color:var(--white);">Design and Build</span>
+                    <span class="phase-panel__racm">RACM: Refined &amp; Validated</span>
+                  </div>
+                  <div class="phase-panel__body">
+                    <div class="phase-activity-list">
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(42,90,156,0.20);">📄</div><div class="phase-activity__content"><div class="phase-activity__title">Read Functional Design Documents — Risk First</div><div class="phase-activity__desc">Three-step approach: (1) What risk am I concerned about? (2) Does this FD affect that risk? (3) If yes — what are the data frequency, direction, and error handling details? The error handling mechanism is typically the control.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(42,90,156,0.20);">🏗</div><div class="phase-activity__content"><div class="phase-activity__title">Design Controls, Validate with Business</div><div class="phase-activity__desc">Translate FD analysis into specific controls. Hold working sessions with business process owners to validate — the business must agree to perform these controls on go-live. Update the RACM with specific, validated control descriptions.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(42,90,156,0.20);">⚖️</div><div class="phase-activity__content"><div class="phase-activity__title">Maintain Scope Boundary</div><div class="phase-activity__desc">The controls team consumes programme artefacts — we do not configure anything in SAP and do not perform design work. That is the SI's role. Our deliverable is the RACM. Keeping this scope boundary clear protects independence and audit credibility.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(198,89,17,0.20);">🤖</div><div class="phase-activity__content"><div class="phase-activity__title">AI Agent Opportunity</div><div class="phase-activity__desc">AI agents can accelerate FD analysis across hundreds of documents — extracting risk-relevant sections and proposing draft controls. The practitioner validates and refines. Volume challenge in Design and Build is the clearest ROI case for AI assistance.</div></div></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="phase-panel" id="panel-ts">
+                  <div class="phase-panel__header" style="background:#C65911;">
+                    <span class="phase-panel__badge" style="background:rgba(255,255,255,0.20);">Phase 3</span>
+                    <span style="font-size:var(--scale-base);font-weight:700;color:var(--white);">Testing</span>
+                    <span class="phase-panel__racm">RACM: Test Evidence Captured</span>
+                  </div>
+                  <div class="phase-panel__body">
+                    <div class="phase-activity-list">
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(198,89,17,0.20);">⚙️</div><div class="phase-activity__content"><div class="phase-activity__title">Configuration Testing</div><div class="phase-activity__desc">Validate system settings that implement a control — OMR6 tolerance keys, workflow thresholds, approval routing. Confirm parameters are set correctly, not just that the control exists.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(198,89,17,0.20);">💳</div><div class="phase-activity__content"><div class="phase-activity__title">Transactional Testing</div><div class="phase-activity__desc">Execute real or simulated transactions to confirm the control responds as designed — run a payment to a fictitious vendor to confirm the SoD block fires, post an invoice exceeding tolerance to confirm the system blocks it.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(198,89,17,0.20);">📊</div><div class="phase-activity__content"><div class="phase-activity__title">Report Testing</div><div class="phase-activity__desc">Confirm exception reports are complete, accurate, and cover the right population. Run the UAR report and verify it captures all relevant user-role combinations. Agree to the underlying system data.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(31,56,100,0.20);">🎯</div><div class="phase-activity__content"><div class="phase-activity__title">Testing Captain Strategy</div><div class="phase-activity__desc">From a major energy company engagement: integrate controls requirements into programme test cases before testing begins. Find the testing captain — the person coordinating a group of testers — and make them your key contact. Route all evidence requests and rework through one coordinator.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(31,56,100,0.20);">🔀</div><div class="phase-activity__content"><div class="phase-activity__title">SIT vs UAT Scope Decision</div><div class="phase-activity__desc">Configuration controls (automated, no human intervention) → System Integration Testing. Workflow-driven and report-driven controls (require human review) → User Acceptance Testing. This distributes effort and aligns each control type with the most appropriate environment.</div></div></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="phase-panel" id="panel-cd">
+                  <div class="phase-panel__header" style="background:#1A7A4A;">
+                    <span class="phase-panel__badge" style="background:rgba(255,255,255,0.20);">Phase 4</span>
+                    <span style="font-size:var(--scale-base);font-weight:700;color:var(--white);">Cutover and Deploy</span>
+                    <span class="phase-panel__racm">RACM: Final — Go-Live Ready</span>
+                  </div>
+                  <div class="phase-panel__body">
+                    <div class="phase-activity-list">
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(26,122,74,0.20);">✅</div><div class="phase-activity__content"><div class="phase-activity__title">Finalise the RACM</div><div class="phase-activity__desc">Every control has an assigned owner. Descriptions reflect the tested final state. RACM is formally approved and distributed to all post-go-live stakeholders. This is the finished version of a document that began as a preliminary draft in SolCon.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(26,122,74,0.20);">🎓</div><div class="phase-activity__content"><div class="phase-activity__title">Train the Control Owners</div><div class="phase-activity__desc">Every person responsible for a control must understand: what to do, how often, what evidence to produce, and how to escalate exceptions — especially for ITDM and manual controls, where the human element is the control.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(198,89,17,0.20);">🔍</div><div class="phase-activity__content"><div class="phase-activity__title">External Auditor Confirmation Gate</div><div class="phase-activity__desc">The auditor must confirm the controls designed and tested are the controls they will rely on in the annual audit. This confirmation is the final gate before go-live. Touchpoint frequency increases significantly in this phase.</div></div></div>
+                      <div class="phase-activity"><div class="phase-activity__icon" style="background:rgba(26,122,74,0.20);">🗂</div><div class="phase-activity__content"><div class="phase-activity__title">Maintain RACM Traceability</div><div class="phase-activity__desc">The RACM is not a point-in-time document — it is an iterated artefact that has been through multiple versions since SolCon. The ability to trace from the final go-live control back to the original risk assessment is important for audit credibility and future engagements.</div></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div><!-- /phase-timeline -->
+
+              <!-- RACM JOURNEY -->
+              <h3>The RACM Iteration Narrative</h3>
+              <p>The Risk and Controls Matrix is not a one-time build. It begins as a preliminary draft and is progressively refined through every phase of the transformation.</p>
+              <div class="racm-journey">
+                <div class="racm-stage"><div class="racm-stage__header" style="background:#1F7A8C;">SolCon</div><div class="racm-stage__body"><div class="racm-stage__status">Preliminary Draft</div><div class="racm-stage__desc">Risk Universe → initial risk list → placeholder controls based on early process understanding</div></div></div>
+                <div class="racm-stage"><div class="racm-stage__header" style="background:#2A5A9C;">Design &amp; Build</div><div class="racm-stage__body"><div class="racm-stage__status">Refined &amp; Validated</div><div class="racm-stage__desc">FD review → specific controls → business process owner validation and sign-off</div></div></div>
+                <div class="racm-stage"><div class="racm-stage__header" style="background:#C65911;">Testing</div><div class="racm-stage__body"><div class="racm-stage__status">Evidence Captured</div><div class="racm-stage__desc">Test results → DEF/OEF conclusions → findings logged and control design updated if needed</div></div></div>
+                <div class="racm-stage"><div class="racm-stage__header" style="background:#1A7A4A;">Cutover &amp; Deploy</div><div class="racm-stage__body"><div class="racm-stage__status">Final — Go-Live Ready</div><div class="racm-stage__desc">Ownership assigned · Trained · Auditor confirmed · Formally approved and distributed</div></div></div>
+              </div>
+
+              <!-- PHASE ACCORDION (full narrative) -->
+              <h2 id="phases">Phase-by-Phase Detail</h2>
+              <p>Expand each phase for the full controls workstream narrative.</p>
+
+              <div class="phase-accordion">
+
+                <!-- SC -->
+                <div class="pa-item">
+                  <button class="pa-trigger" onclick="togglePA(this)">
+                    <div class="pa-trigger__phase-dot" style="background:#1F7A8C;">SC</div>
+                    <div class="pa-trigger__text"><span class="pa-trigger__title">Phase 1 — Solution Confirmation</span><span class="pa-trigger__sub">Foundation, relationships, preliminary RACM, peak influence window</span></div>
+                    <span class="pa-trigger__racm" style="background:#EBF6F8;color:#1F7A8C;">Preliminary Draft</span>
+                    <svg class="pa-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="pa-panel">
+                    <p>Solution Confirmation is the first phase of the S/4HANA transformation. At this stage the client and their system implementer are defining the future state — what the new system will look like, what processes will change, and what key design decisions will be made. For the controls team, this is the most important phase of the entire engagement — not because the heaviest work happens here, but because the <strong>foundation you lay in Solution Confirmation determines everything that follows</strong>.</p>
+                    <h3>Three Core Activities</h3>
+                    <p><strong>1. Establish the Risk Universe.</strong> Before a single control is designed, you need to understand what could go wrong in the future state. Review the programme scope, understand the business processes being transformed, and produce a preliminary risk assessment.</p>
+                    <p><strong>2. Draft the Preliminary RACM.</strong> Not a finished document — a starting point. The source session is clear: it will not be perfect, but it sets the ground and foundation for what the client's risk and controls landscape will look like. Every subsequent phase refines it.</p>
+                    <p><strong>3. Make friends.</strong> You need relationships with the system implementer's functional leads, the testing team, the security team, the data team, and the cybersecurity team. These relationships will be called upon in every subsequent phase. Invest in them now, when the programme is still in planning mode.</p>
+                    <div class="callout callout--info"><div class="callout__icon">🎯</div><div class="callout__body"><div class="callout__title">Peak Influence Window</div><div class="callout__text">Solution Confirmation is your best opportunity to influence the future state design. If you identify a process that is currently manual but could be automated in S/4HANA, raise it now. Once the Key Design Decisions are finalised and the system is being configured, influencing the design becomes progressively harder and more expensive. The source session notes: <em>it is better to have a workflow designed and built now than to try to get it built later in the programme.</em></div></div></div>
+                    <div class="ai-insight"><div class="ai-insight__label">🤖 AI Agent Callout — Solution Confirmation</div><div class="ai-insight__body">AI agents are beginning to add value in Solution Confirmation — performing current-state to future-state gap analysis, processing programme artefacts, and proposing preliminary controls. In a phase where the team is consuming large volumes of process documentation with limited bandwidth, the efficiency gain from AI-assisted analysis can be significant. The practitioner's role shifts from raw information processing to judgement: validating, challenging, and contextualising what the agent proposes.</div></div>
+                  </div>
+                </div>
+
+                <!-- DB -->
+                <div class="pa-item">
+                  <button class="pa-trigger" onclick="togglePA(this)">
+                    <div class="pa-trigger__phase-dot" style="background:#2A5A9C;">DB</div>
+                    <div class="pa-trigger__text"><span class="pa-trigger__title">Phase 2 — Design and Build</span><span class="pa-trigger__sub">Heavy lifting — FD analysis, control design, business validation</span></div>
+                    <span class="pa-trigger__racm" style="background:#EEF1F8;color:#1F3864;">Refined &amp; Validated</span>
+                    <svg class="pa-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="pa-panel">
+                    <p>Design and Build is the phase of heavy lifting. The client's system implementer is now configuring the system, building workflows, and producing the functional design documents and configuration rationale that define exactly how the future state will work. The controls team's role is to <strong>consume those artefacts and translate them into controls</strong>.</p>
+                    <h3>Reading Functional Design Documents — Risk First</h3>
+                    <p>When you receive a functional design document, your job is not to read it word for word. Your job is to identify the risk relevant to your RACM. The three-step approach:</p>
+                    <p><strong>Step 1 — What risk am I concerned about?</strong> Financial, operational, or regulatory. Define this before opening the document — it is your filter.</p>
+                    <p><strong>Step 2 — Does this FD affect that risk?</strong> If a failed interface could cause a financial misstatement or a compliance exposure, the FD is relevant. If not, move on.</p>
+                    <p><strong>Step 3 — If relevant: extract the key parameters.</strong> For interface controls: data direction and frequency, source and target systems, and critically — the error handling mechanism. Does the system detect interface errors, alert someone, and trigger resolution? That error handling mechanism is the control.</p>
+                    <div class="callout callout--warning"><div class="callout__icon">⚠️</div><div class="callout__body"><div class="callout__title">Scope Boundary — Critical</div><div class="callout__text">The controls team does not configure anything in SAP and does not perform design work. That is the system implementer's role. The controls team consumes the programme's design artefacts and produces the RACM. Keeping these roles distinct protects independence and audit credibility — the controls team reviewing the SI's design work is only meaningful if they are genuinely independent of that design.</div></div></div>
+                    <div class="ai-insight"><div class="ai-insight__label">🤖 AI Agent Callout — Design and Build</div><div class="ai-insight__body">Design and Build presents the clearest ROI case for AI assistance in the controls workstream. The team may be working through hundreds of functional design documents across multiple business processes, multiple team members, and a compressed timeline. AI agents can accelerate initial FD analysis — identifying risk-relevant sections, extracting error handling language, and proposing draft control descriptions. The practitioner validates and refines. The work shifts from document triage to control judgement.</div></div>
+                  </div>
+                </div>
+
+                <!-- TS -->
+                <div class="pa-item">
+                  <button class="pa-trigger" onclick="togglePA(this)">
+                    <div class="pa-trigger__phase-dot" style="background:#C65911;">TS</div>
+                    <div class="pa-trigger__text"><span class="pa-trigger__title">Phase 3 — Testing</span><span class="pa-trigger__sub">Three test categories, testing captain coordination, SIT vs UAT scope</span></div>
+                    <span class="pa-trigger__racm" style="background:#FDF0E8;color:#C65911;">Evidence Captured</span>
+                    <svg class="pa-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="pa-panel">
+                    <p>Testing is the phase where you find out whether the controls you designed will actually work. The source session describes this as <strong>the best and last chance to see if the controls will operate as expected</strong>. Three test categories define the controls testing approach.</p>
+                    <div class="test-grid">
+                      <div class="test-card"><div class="test-card__header" style="background:#1F7A8C;">Configuration Testing</div><div class="test-card__body"><div class="test-card__what">What it tests</div><div class="test-card__desc">System settings that implement a control — confirms parameters are set correctly, not just that the control exists.</div><div class="test-card__example">🔍 Example: Inspect OMR6 tolerance keys; confirm threshold ≤3%; verify no vendor-specific overrides.</div></div></div>
+                      <div class="test-card"><div class="test-card__header" style="background:#2A5A9C;">Transactional Testing</div><div class="test-card__body"><div class="test-card__what">What it tests</div><div class="test-card__desc">Control responds as designed when a transaction is executed — positive and negative scenarios.</div><div class="test-card__example">🔍 Example: Run payment to fictitious vendor — confirm SoD block fires. Post invoice exceeding tolerance — confirm system blocks.</div></div></div>
+                      <div class="test-card"><div class="test-card__header" style="background:#C65911;">Report Testing</div><div class="test-card__body"><div class="test-card__what">What it tests</div><div class="test-card__desc">Exception reports are complete, accurate, and include the right data population.</div><div class="test-card__example">🔍 Example: Run UAR report — verify all relevant user-role combinations are captured; agree to underlying system data.</div></div></div>
+                    </div>
+                    <div class="field-example"><div class="field-example__label">🏭 Field Example — Major Energy Company Engagement</div><div class="field-example__body">The strategy that worked on a major energy company engagement: map controls to the programme's existing test cases before testing begins. Do not wait until the testing team has written their scripts — review the test case steps and add controls testing requirements directly. When a tester opens the test case, they see the programme requirement and the controls requirement in the same document. Also: find the testing captain — the person coordinating a group of testers — and make them your key contact. Routing evidence requests and rework through one coordinator is far more efficient than chasing individual testers across thousands of emails.</div></div>
+                    <h3>SIT vs UAT Scope Decision</h3>
+                    <p><strong>System Integration Testing:</strong> Configuration controls — those that operate without human intervention — belong here, where the system itself is being validated.</p>
+                    <p><strong>User Acceptance Testing:</strong> Workflow-driven and report-driven controls — those requiring human review and action — belong here, where business users are in the system. This distributes the testing workload across cycles and aligns each control type with the most appropriate testing environment.</p>
+                  </div>
+                </div>
+
+                <!-- CD -->
+                <div class="pa-item">
+                  <button class="pa-trigger" onclick="togglePA(this)">
+                    <div class="pa-trigger__phase-dot" style="background:#1A7A4A;">CD</div>
+                    <div class="pa-trigger__text"><span class="pa-trigger__title">Phase 4 — Cutover and Deploy</span><span class="pa-trigger__sub">RACM finalised, control owners trained, external auditor gate</span></div>
+                    <span class="pa-trigger__racm" style="background:#E8F5EE;color:#1A7A4A;">Final — Go-Live Ready</span>
+                    <svg class="pa-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="pa-panel">
+                    <p>Cutover and Deploy is the final phase before go-live. The system has been configured, controls have been designed, and testing has confirmed they work. Now the question is: <strong>is the organisation ready to operate those controls from day one?</strong></p>
+                    <h3>Three Go-Live Readiness Activities</h3>
+                    <p><strong>1. Finalise the RACM.</strong> Confirm every control has an assigned owner. Descriptions reflect the tested final state. The RACM is formally approved and distributed to everyone who will need it post-go-live. This is the completed version of a document that began as a preliminary draft in Solution Confirmation.</p>
+                    <p><strong>2. Train the control owners.</strong> Every person responsible for a control — particularly ITDM and manual controls — must understand what they need to do, how often, what evidence to produce, and how to escalate exceptions. The source session is explicit: people must know how to execute the controls before the system goes live.</p>
+                    <p><strong>3. External auditor confirmation gate.</strong> Across the transformation, the external auditor has been a periodic touchpoint. At Cutover and Deploy, the frequency of those touchpoints increases significantly. The auditor must confirm that the controls the programme designed and tested are the controls they will rely on in their annual audit. That confirmation is the <strong>final gate before go-live</strong>.</p>
+                    <div class="callout callout--navy"><div class="callout__icon">🗂</div><div class="callout__body"><div class="callout__title">RACM Traceability — The Final Principle</div><div class="callout__text">The RACM is not a point-in-time document — it is an iterated artefact that has been through multiple versions since the preliminary draft in Solution Confirmation. The ability to trace from the final tested control back to the original risk assessment that motivated it is important for audit credibility, for programme retrospectives, and for future engagements with the same client. Maintain version control on the RACM from day one.</div></div></div>
+                  </div>
+                </div>
+
+              </div><!-- /phase-accordion -->
+
+              <div class="callout callout--success"><div class="callout__icon">✅</div><div class="callout__body"><div class="callout__title">All Sections Complete</div><div class="callout__text">You have reviewed all content for Module B6. Proceed to <strong>Key Concepts</strong> for a structured recall review, or go directly to the <strong>Knowledge Check</strong>. A passing score of 60% marks this module complete and unlocks Module B7.</div></div></div>
+
+            </div>
+          </div><!-- /tab-content -->
+
+          <!-- ══ TAB: KEY CONCEPTS ══ -->
+          <div class="tab-panel" id="tab-concepts">
+            <div style="font-size:var(--scale-xs);font-weight:700;letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-muted);margin-bottom:var(--space-4);">RACM Iteration Across Four Phases</div>
+            <div class="racm-journey" style="margin-bottom:var(--space-6);">
+              <div class="racm-stage"><div class="racm-stage__header" style="background:#1F7A8C;">SolCon</div><div class="racm-stage__body"><div class="racm-stage__status">Preliminary Draft</div><div class="racm-stage__desc">Risk Universe → initial risk list → placeholder controls</div></div></div>
+              <div class="racm-stage"><div class="racm-stage__header" style="background:#2A5A9C;">Design &amp; Build</div><div class="racm-stage__body"><div class="racm-stage__status">Refined &amp; Validated</div><div class="racm-stage__desc">FD review → specific controls → business sign-off</div></div></div>
+              <div class="racm-stage"><div class="racm-stage__header" style="background:#C65911;">Testing</div><div class="racm-stage__body"><div class="racm-stage__status">Evidence Captured</div><div class="racm-stage__desc">Test results → DEF/OEF conclusions → findings logged</div></div></div>
+              <div class="racm-stage"><div class="racm-stage__header" style="background:#1A7A4A;">Cutover &amp; Deploy</div><div class="racm-stage__body"><div class="racm-stage__status">Final — Go-Live Ready</div><div class="racm-stage__desc">Ownership assigned · Trained · Auditor confirmed</div></div></div>
+            </div>
+
+            <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Phase-by-Phase Summary</div><div class="section-divider__line"></div></div>
+            <div class="grid-2" style="margin-bottom:var(--space-6);">
+              <div class="concept-card"><div class="concept-card__accent" style="background:#1F7A8C;"></div><div class="concept-card__body"><div class="concept-card__label" style="color:#1F7A8C;">Phase 01 — SolCon</div><div class="concept-card__title">Solution Confirmation</div><div class="concept-card__body-text">Risk Universe · Preliminary RACM · Make friends · Influence peak. Primary relationships: SI functional leads, security, data teams.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--navy"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--navy">Phase 02 — Design &amp; Build</div><div class="concept-card__title">Design and Build</div><div class="concept-card__body-text">FD risk-first analysis (3-step) · Control design · Business validation · Scope boundary. AI acceleration: clearest ROI case.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent concept-card__accent--amber"></div><div class="concept-card__body"><div class="concept-card__label concept-card__label--amber">Phase 03 — Testing</div><div class="concept-card__title">Testing</div><div class="concept-card__body-text">Config · Transactional · Report testing. Testing captain strategy. SIT = automated controls; UAT = workflow/report controls.</div></div></div>
+              <div class="concept-card"><div class="concept-card__accent" style="background:var(--color-success);"></div><div class="concept-card__body"><div class="concept-card__label" style="color:var(--color-success);">Phase 04 — Cutover &amp; Deploy</div><div class="concept-card__title">Cutover and Deploy</div><div class="concept-card__body-text">Finalise RACM with ownership · Train control owners (especially ITDM/manual) · External auditor confirmation gate = final gate.</div></div></div>
+            </div>
+
+            <div class="section-divider"><div class="section-divider__line"></div><div class="section-divider__label">Key Definitions</div><div class="section-divider__line"></div></div>
+
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">RACM (Risk and Controls Matrix)</span></div><div class="key-term__definition">The primary deliverable of the controls workstream in a transformation engagement. Progressively refined across all four phases: Preliminary Draft (SolCon) → Refined and Validated (Design and Build) → Test Evidence Captured (Testing) → Final Go-Live Ready (Cutover and Deploy). Each row maps a risk to its control, owner, test procedure, and evidence status.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Functional Design Document (FD)</span></div><div class="key-term__definition">A programme artefact produced by the system implementer that describes how a specific function or process will work in the future state system. Controls teams read FDs to identify risk-relevant design decisions and extract control parameters — particularly error handling mechanisms for interface controls, and workflow thresholds for approval controls.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Testing Captain</span></div><div class="key-term__definition">A coordinator within the testing programme who manages a group of testers. In the controls testing context, the testing captain is the practitioner's primary contact for evidence requests, rework, and test case integration. Routing communications through one coordinator rather than individual testers is significantly more efficient on large programmes.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">SIT vs UAT Scope Decision</span></div><div class="key-term__definition">The decision about which controls to test in System Integration Testing (SIT) versus User Acceptance Testing (UAT). Configuration controls — automated, no human intervention — are scoped for SIT where the system is being validated. Workflow-driven and report-driven controls requiring human action are scoped for UAT where business users are in the system.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">External Auditor Confirmation Gate</span></div><div class="key-term__definition">At Cutover and Deploy, the external auditor must confirm that the controls the programme designed and tested are the controls they will rely on in the annual audit. This is a formal prerequisite for go-live — not an optional step. Touchpoints with the external auditor increase in frequency as go-live approaches. Audit reliance on day one depends on this confirmation.</div></div>
+            <div class="key-term"><div class="key-term__term"><span class="key-term__label">Term</span><span class="key-term__word">Scope Boundary (Controls vs SI)</span></div><div class="key-term__definition">The controls team consumes programme artefacts and produces the RACM — they do not configure SAP and do not perform design work. That is the system implementer's role. This scope boundary protects the independence of the controls review and maintains the audit credibility of the RACM as an independent assessment of the future-state design.</div></div>
+          </div><!-- /tab-concepts -->
+
+          <!-- ══ TAB: QUIZ ══ -->
+          <div class="tab-panel" id="tab-quiz">
+            <div class="quiz-block">
+              <div class="quiz-block__header"><div class="quiz-block__icon">✏️</div><div class="quiz-block__title">Knowledge Check — B6 S/4HANA Lifecycle</div><div class="quiz-block__counter" id="quiz-counter">Q1 of 5</div></div>
+              <div class="quiz-block__body" id="quiz-body">
+                <div id="quiz-question-wrap">
+                  <div class="quiz-question" id="quiz-q-text">Loading…</div>
+                  <div class="quiz-options" id="quiz-options"></div>
+                  <div class="quiz-feedback" id="quiz-feedback"><div class="quiz-feedback__icon" id="quiz-fb-icon"></div><div class="quiz-feedback__text" id="quiz-fb-text"></div></div>
+                </div>
+                <div class="quiz-score-display hidden" id="quiz-score-screen">
+                  <div class="quiz-score-display__number" id="quiz-score-num">—</div>
+                  <div class="quiz-score-display__label">Your Score</div>
+                  <div style="margin-top:var(--space-4);font-size:var(--scale-sm);color:var(--text-secondary);max-width:40ch;margin-left:auto;margin-right:auto;" id="quiz-score-msg"></div>
+                  <div style="margin-top:var(--space-8);display:flex;gap:var(--space-3);justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="restartQuiz()">Retake Quiz</button>
+                    <button class="btn btn-primary" onclick="switchTab(document.querySelector('[data-tab=tutor]'),'tutor')">Ask AI Tutor</button>
+                    <button class="btn btn-navy" id="next-mod-btn" onclick="location.href='b7.html'" style="display:none;">Next: B7 →</button>
+                  </div>
+                </div>
+              </div>
+              <div class="quiz-block__footer" id="quiz-footer">
+                <div style="font-size:var(--scale-xs);color:var(--text-muted);"><span id="quiz-score-track">Score: 0 / 0</span></div>
+                <div style="display:flex;gap:var(--space-3);">
+                  <button class="btn btn-ghost btn--sm" id="quiz-check-btn" onclick="checkAnswer()" disabled>Check Answer</button>
+                  <button class="btn btn-primary btn--sm hidden" id="quiz-next-btn" onclick="nextQuestion()">Next →</button>
+                </div>
+              </div>
+            </div>
+          </div><!-- /tab-quiz -->
+
+          <!-- ══ TAB: AI TUTOR ══ -->
+          <div class="tab-panel" id="tab-tutor">
+            <div class="ai-tutor">
+              <div class="ai-tutor__header">
+                <div class="ai-tutor__avatar">🤖</div>
+                <div class="ai-tutor__info"><div class="ai-tutor__name">TIB AI Tutor</div><div class="ai-tutor__status"><div class="ai-tutor__status-dot"></div>Ready — Module B6 context loaded</div></div>
+                <div class="ai-tutor__badge">Powered by Claude</div>
+              </div>
+              <div class="ai-tutor__messages" id="chat-messages">
+                <div class="chat-message chat-message--ai"><div class="chat-message__avatar">T</div><div class="chat-message__bubble">👋 Welcome to Module B6 — <strong>S/4HANA Lifecycle</strong>.<br><br>I have full context on all four phases, the RACM iteration narrative, the three test categories, the testing captain strategy, the AI agent callouts, and the external auditor gate. I can also help you work through how these phases connect — just ask about a specific phase or scenario.</div></div>
+              </div>
+              <div class="ai-tutor__prompt-row">
+                <button class="prompt-chip" onclick="sendChip(this)">What happens to the RACM in each phase?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Explain the testing captain strategy</button>
+                <button class="prompt-chip" onclick="sendChip(this)">SIT vs UAT — which controls go where?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Why is SolCon the peak influence window?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">What is the external auditor gate?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">How do AI agents help in Design and Build?</button>
+                <button class="prompt-chip" onclick="sendChip(this)">Give me a quiz hint</button>
+              </div>
+              <div class="ai-tutor__input-row">
+                <textarea class="ai-tutor__textarea" id="chat-input" placeholder="Ask anything about Module B6 — S/4HANA Lifecycle…" rows="1" onkeydown="handleChatKey(event)" oninput="autoGrow(this)"></textarea>
+                <button class="ai-tutor__send" id="chat-send" onclick="sendChat()" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+              </div>
+            </div>
+          </div><!-- /tab-tutor -->
+
+        </div><!-- /tabs -->
+
+        <div class="completion-banner hidden" id="completion-banner">
+          <div class="completion-banner__confetti" id="confetti-wrap"></div>
+          <div class="completion-banner__inner">
+            <span class="completion-banner__icon">🎉</span>
+            <h2 class="completion-banner__title">Module B6 Complete!</h2>
+            <p class="completion-banner__subtitle">You have mastered the S/4HANA lifecycle — all four phases, the RACM iteration narrative, and the key coordination strategies. Module B7 is now unlocked.</p>
+            <div class="completion-banner__stats">
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-score">—</div><div class="completion-banner__stat-label">Quiz Score</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value">B6</div><div class="completion-banner__stat-label">Module</div></div>
+              <div class="completion-banner__stat"><div class="completion-banner__stat-value" id="stat-time">—</div><div class="completion-banner__stat-label">Time Spent</div></div>
+            </div>
+            <a href="b7.html" class="btn btn-primary btn--xl">Continue to B7 — Reading FD Documents →</a>
+          </div>
+        </div>
+
+      </div><!-- /lms-content -->
+
+      <footer class="module-nav-footer">
+        <div class="module-nav-footer__context">
+          <svg class="module-nav-footer__progress-ring ring-svg" viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="15.9"/><circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15.9"/></svg>
+          <div class="module-nav-footer__labels"><div class="module-nav-footer__module">Module B6 · Applied</div><div class="module-nav-footer__title">S/4HANA Lifecycle</div></div>
+        </div>
+        <div class="module-nav-footer__actions">
+          <a href="b5.html" class="btn btn-ghost btn--sm">← B5</a>
+          <button class="btn btn-ghost btn--sm" id="mark-complete-btn" onclick="markComplete()">Mark Complete</button>
+          <a href="b7.html" class="btn btn-navy btn--sm">Next: B7 →</a>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const CLAUDE_API_KEY='sk-ant-api03-6S-zY5EX14Ity0O8rV9tk12lMdtk1QVBuc0RbxmLWssAqcE5avVmWPL3F_K-IMe8whHE9YdA-zxF7NFUuA2b-w-cM';
+const LS_COMPLETE_KEY='tib_module_b6_complete';
+const LS_ALL_CODES=['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'];
+const MODULE_START_MS=Date.now();
+
+// ── PHASE TIMELINE ──────────────────────────────────────
+const PHASE_ORDER=['sc','db','ts','cd'];
+let currentPhase='sc';
+function selectPhase(ph){
+  currentPhase=ph;
+  PHASE_ORDER.forEach((p,i)=>{
+    const node=document.getElementById(`node-${p}`);
+    const panel=document.getElementById(`panel-${p}`);
+    node.className='phase-node'+(p===ph?' phase-node--active':(PHASE_ORDER.indexOf(ph)>i?' phase-node--done':''));
+    panel.className='phase-panel'+(p===ph?' active':'');
+  });
+  // connectors
+  ['sc-db','db-ts','ts-cd'].forEach((pair,i)=>{
+    const conn=document.getElementById(`conn-${pair}`);
+    const phIdx=PHASE_ORDER.indexOf(ph);
+    conn.className='phase-connector'+(phIdx>i?' phase-connector--done':'');
+  });
+}
+
+// ── PHASE ACCORDION ─────────────────────────────────────
+function togglePA(trigger){
+  const panel=trigger.nextElementSibling;
+  const isOpen=trigger.classList.contains('open');
+  document.querySelectorAll('.pa-trigger').forEach(t=>{t.classList.remove('open');t.nextElementSibling.classList.remove('open');});
+  if(!isOpen){trigger.classList.add('open');panel.classList.add('open');}
+}
+
+// ── QUIZ ────────────────────────────────────────────────
+const QUIZ=[
+  {
+    q:"During Solution Confirmation, the controls lead identifies that the client's current accounts payable process uses a paper approval form. The S/4HANA system implementer is still in early design discussions. What is the correct controls action?",
+    opts:[
+      {t:'Document the manual control in the preliminary RACM and plan to test it during the testing phase.',c:false},
+      {t:'Raise the opportunity to configure an automated approval workflow in S/4HANA now — Solution Confirmation is the peak influence window for shaping future state design.',c:true},
+      {t:'Wait until Design and Build before making any design recommendations, since Key Design Decisions have not yet been finalised.',c:false},
+      {t:'Escalate to the programme manager to determine whether the workflow should be included in scope before raising it with the system implementer.',c:false}
+    ],
+    exp:'Correct. Solution Confirmation is the peak influence window — the optimal moment to identify manual controls that could be automated in the future state and raise them with the programme. The source session is explicit: it is better to have a workflow designed and built now than to try to get it built later in the programme. Once Key Design Decisions are finalised, influencing the design becomes progressively harder and more expensive. Option A accepts the status quo instead of advocating for improvement. Option C waits too long. Option D adds an unnecessary escalation step.'
+  },
+  {
+    q:"A controls practitioner on a large S/4HANA programme receives a functional design document describing an interface that transfers purchase requisitions from an external procurement system into SAP. What is the risk-first reading approach for this FD?",
+    opts:[
+      {t:'Read the full 21-page document to understand the complete business purpose before identifying any risk implications.',c:false},
+      {t:'Skip the FD — interface controls are the system implementer\'s responsibility, not the controls team\'s.',c:false},
+      {t:'First define the relevant risk (e.g. financial completeness of requisition data), then assess whether this interface affects that risk, then extract the error handling mechanism if relevant.',c:true},
+      {t:'Check whether the FD has been formally approved by the business process owner before reading its contents.',c:false}
+    ],
+    exp:'Correct. The three-step risk-first reading approach from Module B6: (1) What risk am I concerned about? Define this before opening the document — it is your filter. (2) Does this FD affect that risk? If incomplete requisition data could cause a financial misstatement or liability issue, the FD is relevant. (3) If relevant — extract the error handling mechanism: how does the system detect, alert, and resolve interface failures? That mechanism is the control. Option A reads the whole document without a filter — inefficient. Option B misunderstands the controls team\'s responsibility for interface controls in the RACM. Option D focuses on approvals rather than risk analysis.'
+  },
+  {
+    q:"In the testing phase, a controls practitioner discovers that a tester has executed a test case but provided only a screenshot of the initial transaction entry screen — without the system confirmation or blocking reason code that the controls team specified as required evidence. What should the practitioner do?",
+    opts:[
+      {t:'Accept the evidence — the test was executed and the screenshot proves the tester performed the step.',c:false},
+      {t:'Raise a formal defect in the testing tool and escalate to the programme manager immediately.',c:false},
+      {t:'Go back to the tester (or the testing captain) and request the specific evidence required — the system confirmation or blocking reason code — as agreed in the test plan.',c:true},
+      {t:'Re-execute the test case independently without involving the original tester.',c:false}
+    ],
+    exp:'Correct. The source session provides a field example directly on this point: when the evidence coming back is inadequate, go back and ask for the specific evidence required. The preferred route on large programmes is through the testing captain — the coordinator who manages a group of testers — rather than chasing individual testers directly. The test plan should already specify exactly what screenshots or system outputs are required, so the request is grounded in pre-agreed expectations. Option A accepts insufficient evidence — this would result in an incomplete controls test. Option B is disproportionate for a standard evidence rework situation. Option D bypasses the programme\'s testing process.'
+  },
+  {
+    q:"At the start of a large S/4HANA programme with approximately 300 controls in scope, the controls team must decide which controls to scope for System Integration Testing (SIT) and which for User Acceptance Testing (UAT). Which scoping decision is correct?",
+    opts:[
+      {t:'All 300 controls should be tested in UAT — business users need to confirm that every control will work before go-live.',c:false},
+      {t:'Configuration controls (automated, no human intervention) → SIT. Workflow-driven and report-driven controls requiring human review → UAT.',c:true},
+      {t:'High-risk controls → SIT. Medium and low-risk controls → UAT, since UAT is a less resource-intensive testing environment.',c:false},
+      {t:'Controls designed in-house by the controls team → SIT. Controls configured by the system implementer → UAT.',c:false}
+    ],
+    exp:'Correct. The SIT vs UAT scope decision is based on control nature, not risk rating or design ownership. Configuration controls — automated, no human intervention — belong in SIT, where the system itself is being validated. Workflow-driven and report-driven controls — those requiring human review and action — belong in UAT, where business users are in the system and can demonstrate they can perform the required human element. This approach distributes effort across testing cycles and matches each control type with the most appropriate testing environment. The source session notes that on a programme with hundreds of controls, testing everything in every cycle is not feasible — the SIT/UAT split is the efficiency mechanism.'
+  },
+  {
+    q:"At Cutover and Deploy, the controls lead confirms that all controls in the RACM have been designed, validated, and tested. The team has also prepared training materials for control owners. The programme is ready for the go-live readiness sign-off. Which additional step is required before the go-live date?",
+    opts:[
+      {t:'No additional steps are required — design, validation, testing, and training cover all the prerequisites for controls go-live readiness.',c:false},
+      {t:'The controls team must re-run the full SoD conflict analysis one final time to confirm no new conflicts have been introduced during the final system configuration.',c:false},
+      {t:'The external auditor must confirm that the controls designed and tested are the controls they will rely on in the annual audit — this confirmation is the final gate before go-live.',c:true},
+      {t:'The RACM must be re-submitted to all business process owners for a final sign-off round to confirm they have received the training materials.',c:false}
+    ],
+    exp:'Correct. The external auditor confirmation gate is an explicit prerequisite for go-live readiness in Module B6. Even when controls are designed, validated, tested, and control owners trained, the external auditor must confirm that the controls the programme has built are the ones they will rely on in the annual external audit. This confirmation is the final gate. If the auditor has concerns — about design, evidence quality, or coverage — those must be resolved before go-live, not after. Option A omits the auditor gate entirely. Option B describes a valid activity but is not the primary missing step. Option D is a useful activity but does not represent the final gate the source session identifies.'
+  }
+];
+
+let QS={idx:0,sel:null,answered:false,score:0};
+function renderQuestion(){if(QS.idx>=QUIZ.length){showScoreScreen();return;}const q=QUIZ[QS.idx];document.getElementById('quiz-counter').textContent=`Q${QS.idx+1} of ${QUIZ.length}`;document.getElementById('quiz-q-text').textContent=q.q;const opts=document.getElementById('quiz-options');opts.innerHTML='';['A','B','C','D'].forEach((ltr,i)=>{const btn=document.createElement('button');btn.className='quiz-option';btn.innerHTML=`<div class="quiz-option__marker">${ltr}</div><div class="quiz-option__text">${q.opts[i].t}</div>`;btn.addEventListener('click',()=>selectOpt(i));opts.appendChild(btn);});document.getElementById('quiz-feedback').className='quiz-feedback';document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.add('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx}`;QS.sel=null;QS.answered=false;}
+function selectOpt(i){if(QS.answered)return;QS.sel=i;document.querySelectorAll('.quiz-option').forEach((b,j)=>b.classList.toggle('selected',j===i));document.getElementById('quiz-check-btn').disabled=false;}
+function checkAnswer(){if(QS.sel===null||QS.answered)return;QS.answered=true;const q=QUIZ[QS.idx];const correct=q.opts[QS.sel].c;if(correct)QS.score++;document.querySelectorAll('.quiz-option').forEach((btn,i)=>{btn.classList.add('disabled');if(q.opts[i].c)btn.classList.add('correct');else if(i===QS.sel&&!correct)btn.classList.add('incorrect');});const fb=document.getElementById('quiz-feedback');fb.className=`quiz-feedback visible quiz-feedback--${correct?'correct':'incorrect'}`;document.getElementById('quiz-fb-icon').textContent=correct?'✅':'❌';document.getElementById('quiz-fb-text').textContent=q.exp;document.getElementById('quiz-check-btn').disabled=true;document.getElementById('quiz-next-btn').classList.remove('hidden');document.getElementById('quiz-score-track').textContent=`Score: ${QS.score} / ${QS.idx+1}`;}
+function nextQuestion(){QS.idx++;if(QS.idx>=QUIZ.length)showScoreScreen();else renderQuestion();}
+function showScoreScreen(){const pct=Math.round((QS.score/QUIZ.length)*100);const msgs=[[80,'🌟 Excellent. You have a strong command of the S/4HANA transformation lifecycle. Ready for B7.'],[60,'👍 Good work — passed. Review explanations on any questions you missed.'],[0,'📖 Not quite yet. Re-read the content sections and retake — you have got this.']];const msg=msgs.find(m=>pct>=m[0]);document.getElementById('quiz-score-num').textContent=`${QS.score}/${QUIZ.length}`;document.getElementById('quiz-score-msg').textContent=msg[1];document.getElementById('quiz-question-wrap').classList.add('hidden');document.getElementById('quiz-score-screen').classList.remove('hidden');document.getElementById('quiz-footer').classList.add('hidden');document.getElementById('stat-score').textContent=`${pct}%`;if(pct>=60){document.getElementById('next-mod-btn').style.display='';setTimeout(()=>markComplete(pct),800);}}
+function restartQuiz(){QS={idx:0,sel:null,answered:false,score:0};document.getElementById('quiz-question-wrap').classList.remove('hidden');document.getElementById('quiz-score-screen').classList.add('hidden');document.getElementById('quiz-footer').classList.remove('hidden');renderQuestion();}
+
+function markComplete(score){localStorage.setItem(LS_COMPLETE_KEY,'true');(async function(){try{if(window.__sccSb&&window.__sccUserEmail){await window.__sccSb.from('sapexec_scc_progress').upsert({email:window.__sccUserEmail,module_id:'b6'},{onConflict:'email,module_id'});}}catch(e){console.warn('sapexec_scc_progress sync failed',e);}})();refreshSidebarProgress();const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);const mins=Math.max(1,Math.round((Date.now()-MODULE_START_MS)/60000));document.getElementById('stat-time').textContent=`${mins}m`;const banner=document.getElementById('completion-banner');if(banner){banner.classList.remove('hidden');setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'center'}),200);launchConfetti();}showToast('success','Module B6 Complete!','S/4HANA Lifecycle is marked complete. B7 is now unlocked.',4500);}
+function showAlreadyComplete(){const hb=document.getElementById('header-status-badge');if(hb){hb.textContent='✓ Complete';hb.className='badge badge--success';}const hs=document.getElementById('hero-status');if(hs)hs.textContent='✓ Completed';const btn=document.getElementById('mark-complete-btn');if(btn){btn.textContent='✓ Completed';btn.disabled=true;}setProgress(100);}
+function setProgress(pct){const bar=document.getElementById('mod-prog-bar');const txt=document.getElementById('mod-prog-pct');const ring=document.getElementById('ring-fill');if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=pct+'%';if(ring)ring.style.strokeDashoffset=100-pct;}
+function refreshSidebarProgress(){const done=LS_ALL_CODES.filter(c=>localStorage.getItem(`tib_module_${c.toLowerCase()}_complete`)==='true').length;const pct=Math.round((done/10)*100);const fill=document.getElementById('sidebar-prog-fill');const txt=document.getElementById('sidebar-prog-text');if(fill)fill.style.width=pct+'%';if(txt)txt.textContent=`${done} / 10 complete`;}
+const TAB_PROGRESS={content:25,concepts:55,quiz:80,tutor:92};
+function switchTab(btn,tabId){if(typeof btn==='string'){tabId=btn;btn=document.querySelector(`[data-tab="${tabId}"]`);}document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));if(btn)btn.classList.add('active');const panel=document.getElementById(`tab-${tabId}`);if(panel)panel.classList.add('active');if(localStorage.getItem(LS_COMPLETE_KEY)!=='true')setProgress(TAB_PROGRESS[tabId]||10);}
+document.getElementById('hamburger').addEventListener('click',()=>{const sb=document.getElementById('sidebar');const bd=document.getElementById('sidebar-backdrop');const open=sb.classList.toggle('open');bd.classList.toggle('active',open);});
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-backdrop').classList.remove('active');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+document.getElementById('main-scroll').addEventListener('scroll',function(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')return;const pct=Math.round((this.scrollTop/Math.max(1,this.scrollHeight-this.clientHeight))*100);setProgress(Math.min(pct,24));});
+function launchConfetti(){const wrap=document.getElementById('confetti-wrap');if(!wrap)return;wrap.innerHTML='';const cols=['1F7A8C','C65911','FFFFFF','5BB5C6','F0A070','1F3864','2AA860'];for(let i=0;i<60;i++){const el=document.createElement('div');el.className='confetti-piece';el.style.cssText=`left:${Math.random()*100}%;top:${-10-Math.random()*20}px;background:#${cols[Math.floor(Math.random()*cols.length)]};width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2.5}s;animation-delay:${Math.random()*0.8}s;`;wrap.appendChild(el);}}
+function showToast(type,title,msg,ms=4000){const icons={success:'✅',info:'ℹ️',warning:'⚠️',error:'❌'};const el=document.createElement('div');el.className=`toast toast--${type}`;el.innerHTML=`<div class="toast__icon">${icons[type]||'ℹ️'}</div><div><div class="toast__title">${title}</div><div class="toast__message">${msg}</div></div>`;document.getElementById('toasts').appendChild(el);setTimeout(()=>{el.style.cssText='opacity:0;transform:translateY(8px);transition:all 300ms ease;';setTimeout(()=>el.remove(),300);},ms);}
+
+const SYSTEM_PROMPT=`You are TIB AI Tutor — an expert SAP GRC and Internal Controls instructor for TIB Systems Inc.
+
+You are supporting Module B6: S/4HANA Lifecycle, from the SAP Controls & Compliance Training Programme.
+
+MODULE B6 CONTEXT:
+- Four phases of an S/4HANA transformation engagement, each with specific controls activities:
+  1. Solution Confirmation (SC): Risk Universe · Preliminary RACM · Make Friends · Peak Influence Window · AI agents for gap analysis
+  2. Design and Build (DB): FD risk-first reading (3 steps: risk? → relevant? → parameters?) · Control design · Business validation · Scope boundary (controls team does NOT configure SAP) · AI for FD analysis acceleration
+  3. Testing (TS): 3 test categories (Configuration=OMR6; Transactional=SoD block; Report=UAR population) · Testing captain strategy · SIT (automated/config) vs UAT (workflow/report) scope decision
+  4. Cutover and Deploy (CD): Finalise RACM with ownership · Train control owners (especially ITDM/manual) · External auditor confirmation gate = final gate before go-live
+- RACM iteration narrative: Preliminary Draft (SC) → Refined & Validated (DB) → Test Evidence Captured (TS) → Final Go-Live Ready (CD)
+- Testing captain: coordinator for a group of testers — route evidence requests through one person, not individual testers
+- AI agents: most relevant in SC (gap analysis) and DB (FD analysis acceleration). Practitioner role shifts from information processing to judgement.
+- Field example: major energy company engagement — integrate controls requirements into programme test cases before testing begins
+- External auditor: periodic touchpoints throughout; frequency increases significantly at Cutover and Deploy
+- Scope boundary: controls team consumes artefacts and produces RACM — does not configure SAP or design the system (that is the SI's job)
+
+TONE: Professional, clear, encouraging. 2-4 paragraphs. Quiz hints = conceptual nudge only. Can help connect phases and explain how one phase feeds into the next.`;
+
+let chatHistory=[];
+async function sendChat(){const input=document.getElementById('chat-input');const sendBtn=document.getElementById('chat-send');const text=input.value.trim();if(!text)return;appendMsg('user',text);chatHistory.push({role:'user',content:text});input.value='';autoGrow(input);sendBtn.disabled=true;const typingId=appendTyping();try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:chatHistory})});if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${res.status}`);}const data=await res.json();const reply=(data.content||[]).map(b=>b.type==='text'?b.text:'').join('');removeTyping(typingId);appendMsg('ai',reply);chatHistory.push({role:'assistant',content:reply});}catch(err){removeTyping(typingId);appendMsg('ai',`⚠️ Connection error: ${err.message}`);}finally{sendBtn.disabled=false;}}
+function appendMsg(role,text){const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className=`chat-message chat-message--${role}`;const initial=role==='ai'?'T':'U';const html=role==='ai'?text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code style="font-family:var(--font-mono);font-size:0.9em;background:var(--grey-100);padding:1px 5px;border-radius:3px;">$1</code>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>'):text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');el.innerHTML=`<div class="chat-message__avatar">${initial}</div><div class="chat-message__bubble">${html}</div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;}
+function appendTyping(){const id=`typing-${Date.now()}`;const wrap=document.getElementById('chat-messages');const el=document.createElement('div');el.className='chat-message chat-message--ai';el.id=id;el.innerHTML=`<div class="chat-message__avatar">T</div><div class="chat-message__bubble"><div class="chat-message__typing"><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div><div class="chat-message__typing-dot"></div></div></div>`;wrap.appendChild(el);wrap.scrollTop=wrap.scrollHeight;return id;}
+function removeTyping(id){const el=document.getElementById(id);if(el)el.remove();}
+function sendChip(btn){document.getElementById('chat-input').value=btn.textContent.trim();autoGrow(document.getElementById('chat-input'));sendChat();}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+
+(function boot(){if(localStorage.getItem(LS_COMPLETE_KEY)==='true')showAlreadyComplete();LS_ALL_CODES.forEach(c=>{const key=`tib_module_${c.toLowerCase()}_complete`;const item=document.querySelector(`[data-module="${c}"]`);if(item&&localStorage.getItem(key)==='true'){item.classList.add('complete');const icon=item.querySelector('.lms-nav-item__icon');if(icon)icon.textContent='✓';}});refreshSidebarProgress();renderQuestion();})();
+window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('tib_module_')){refreshSidebarProgress();if(e.key===LS_COMPLETE_KEY&&e.newValue==='true')showAlreadyComplete();}});
+</script>
+</body>
+</html>
