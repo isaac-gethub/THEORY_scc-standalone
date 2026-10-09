@@ -1459,7 +1459,9 @@
 /* ─────────────────────────────────────────────────────────────
    CONFIGURATION
    ───────────────────────────────────────────────────────────── */
-const CLAUDE_API_KEY   = 'sk-ant-api03-6S-zY5EX14Ity0O8rV9tk12lMdtk1QVBuc0RbxmLWssAqcE5avVmWPL3F_K-IMe8whHE9YdA-zxF7NFUuA2b-w-cM';
+const CLAUDE_API_KEY='server-side'; // AI key now kept on the server (Supabase function ai-tutor)
+const TIB_TUTOR_ENABLED=false; // AI Tutor on hold (Oct 9 2026). No AI key is used anywhere.
+const TIB_TUTOR_URL='https://blfgwysgekfqhcafofhe.supabase.co/functions/v1/ai-tutor';const TIB_ANON='sb_publishable_ThLetpd4hj49fjce-kXoFA_v4ghwIqV';function tibAccessToken(){try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/^sb-.*-auth-token$/.test(k)){const v=JSON.parse(localStorage.getItem(k));const t=(v&&(v.access_token||(v.currentSession&&v.currentSession.access_token)));if(t)return t}}}catch(e){}return ''}
 const MODULE_CODE      = 'B1';
 const LS_COMPLETE_KEY  = 'tib_module_b1_complete';   // as specified in brief
 const LS_ALL_CODES     = ['B1','B2','B3','B4','B5','B6','B7','B8','B9','B10'];
@@ -1822,7 +1824,7 @@ TONE & APPROACH:
 
 let chatHistory = [];
 
-async function sendChat () {
+async function sendChat () {if(!TIB_TUTOR_ENABLED){const i=document.getElementById('chat-input');if(i&&i.value.trim()){appendMsg('user',i.value.trim());i.value='';}appendMsg('ai','The AI Tutor is not available at the moment. Please continue with the module content.');return;}
   const input   = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send');
   const text    = input.value.trim();
@@ -1837,13 +1839,11 @@ async function sendChat () {
   const typingId = appendTyping();
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(TIB_TUTOR_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'Authorization':'Bearer '+tibAccessToken(),'apikey':TIB_ANON
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
